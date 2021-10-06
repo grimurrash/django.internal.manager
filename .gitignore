@@ -1,0 +1,7 @@
+.env
+/.idea
+/venv
+/static/admin
+/static/grappelli
+credentials.json
+passenger_wsgi.py
