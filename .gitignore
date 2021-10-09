@@ -5,3 +5,4 @@
 /static/grappelli
 credentials.json
 passenger_wsgi.py
+.restart-app
