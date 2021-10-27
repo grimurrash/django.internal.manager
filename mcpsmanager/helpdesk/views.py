@@ -1,7 +1,9 @@
+import json
+from django.core.handlers.wsgi import WSGIRequest
 from django.http import JsonResponse
-from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-from .functions import get_spreadsheet_all_row, get_spreadsheet_row_values, send_telegram_report
-from .models import Employee, Message
+from django.views.decorators.csrf import csrf_exempt
+from telegram import TelegramError
+from helpdesk.functions import *
 
 
 def new_request(_, row_number):
@@ -19,7 +21,7 @@ def new_request(_, row_number):
 
     employees = Employee.objects.filter(is_send_new_request=True)
     inline_keyboard_markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text='Принять', callback_data='accept')]]
+        [[InlineKeyboardButton(text='Принять', callback_data='helpdesk_accept')]]
     )
     for employee in employees:
         Message.send(employee, request_number, body_text, inline_keyboard_markup)
@@ -55,7 +57,7 @@ def accept_request(_, row_number):
         return JsonResponse({'success': False}, status=200)
 
     inline_keyboard_markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text='Выполнено', callback_data='done')]]
+        [[InlineKeyboardButton(text='Выполнено', callback_data='helpdesk_done')]]
     )
     Message.send(employee, request_number, body_text, inline_keyboard_markup)
 
@@ -91,3 +93,76 @@ def reminder():
         send_telegram_report(body_text=text, chat_id=chat_id)
 
     return JsonResponse({'success': True})
+
+
+def import_passwords(_):
+    AccountCategory.objects.import_from_google_table()
+    return JsonResponse({'success': True})
+
+
+@csrf_exempt
+def webhook(request: WSGIRequest):
+    bot = Bot(
+        token=settings.TELEGRAM_MCPSIT_BOT_TOKEN
+    )
+    json_body = json.loads(request.body)
+    update = Update.de_json(json_body, bot)
+    try:
+        if update.message:
+            text = update.message.text.encode('utf-8').decode()
+
+            # Команды меню
+            if text == '/report':
+                report_menu(update)
+            elif text == '/password':
+                password_list_menu(update)
+            elif text == '/checklist':
+                checklist_menu(update)
+            else:
+                # Проверка наличия у пользователя активных действий
+                employee = Employee.objects.get(chat_id=update.message.chat.id)
+                if employee.actual_action.startswith('password_list_search'):
+                    password_list_search(update)
+                elif employee.actual_action.startswith('password_account') \
+                        and employee.actual_action.endswith('edit_password'):
+                    password_account_edit(update)
+        elif update.callback_query:
+            action = update.callback_query.data
+
+            # Обработчики меню отчетов
+            if action == 'report_on_current_request':
+                report_on_current_request(update)
+            elif action == 'report_on_statistics':
+                report_on_statistics(update)
+
+            # Разное
+            if action == 'delete_message':
+                delete_message(update)
+
+            # Обработчики меню заявок
+            if action == 'helpdesk_accept':
+                accept_button(update)
+            elif action == 'helpdesk_done':
+                done_button(update)
+
+            # Обработчики меню чек листов
+            if action == 'checklist_check_osh':
+                checklist_check(update, 'osh')
+
+            # Обработчики меню паролей
+            if action == 'password_list_favorite':
+                password_list_favorite(update)
+            elif action == 'password_list_search_start':
+                password_list_search_start(update)
+            elif action == 'password_list_search_end':
+                password_list_search_end(update)
+            elif action.startswith('password_list_search'):
+                password_list_search(update)
+            elif action.startswith('password_category'):
+                password_list_category_show(update)
+            elif action.startswith('password_account'):
+                password_account_handler(update)
+
+    except TelegramError:
+        bot.send_message(text=json_body, chat_id=332158440)
+    return HttpResponse()
