@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'helpdesk.apps.HelpdeskConfig',
+    'teamsevent',
     'corsheaders',
 ]
 
@@ -139,6 +140,11 @@ STATIC_ROOT = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# microsoft auth
+MICROSOFT_APP_CLIENT_ID = env('MICROSOFT_APP_CLIENT_ID')
+MICROSOFT_APP_CLIENT_SECRET = env('MICROSOFT_APP_CLIENT_SECRET')
+MICROSOFT_APP_TENANT_ID = env('MICROSOFT_APP_TENANT_ID')
+
 # google auth
 GOOGLE_CREDENTIALS_FILE_PATH = os.path.join(ROOT_DIR, env('GOOGLE_CREDENTIALS_FILE'))
 
@@ -148,5 +154,3 @@ GOOGLE_CHECKLIST_SPREADSHEET_ID = env('GOOGLE_CHECKLIST_SPREADSHEET_ID')
 
 # HELP DESK SETTING
 TELEGRAM_MCPSIT_BOT_TOKEN = env('TELEGRAM_MCPSIT_BOT_TOKEN')
-
-
