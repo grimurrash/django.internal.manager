@@ -12,12 +12,14 @@ def new_request(_, row_number):
     request_number = row[1]
     body_text = f'<b>Новая заявка № {request_number}</b>\n\n' \
                 f'<b>Заявитель: </b> {row[2]}\n' \
-                f'<b>Телефон: </b> {row[3]}\n' \
+                f'<b>Телефон: </b> <a href="tel:{row[3]}">{row[3]}</a>\n' \
                 f'<b>Адрес: </b> {row[4]}\n' \
                 f'<b>Номер кабинета: </b> {row[5]}\n' \
                 f'<b>Категория: </b> {row[6]}\n' \
-                f'<b>Описание: </b> {row[7]}\n' \
-                f'<b>Желаемое время: </b> {row[8]}'
+                f'<b>Описание: </b> {row[7]}\n'
+
+    if row[8]:
+        body_text += f'<b>AnyDesk: </b> <a href="{row[8]}">{row[8]}</a>'
 
     employees = Employee.objects.filter(is_send_new_request=True)
     inline_keyboard_markup = InlineKeyboardMarkup(
@@ -44,17 +46,18 @@ def accept_request(_, row_number):
 
     body_text = f'<b>У вас новая заявка № {request_number}</b>\n\n' \
                 f'<b>Заявитель: </b> {row[2]}\n' \
-                f'<b>Телефон: </b> {row[3]}\n' \
+                f'<b>Телефон: </b> <a href="tel:{row[3]}">{row[3]}</a>\n' \
                 f'<b>Адрес: </b> {row[4]}\n' \
                 f'<b>Номер кабинета: </b> {row[5]}\n' \
                 f'<b>Категория: </b> {row[6]}\n' \
-                f'<b>Описание: </b> {row[7]}\n' \
-                f'<b>Желаемое время: </b> {row[8]}'
+                f'<b>Описание: </b> {row[7]}\n'
+    if row[8]:
+        body_text += f'<b>AnyDesk: </b> <a href="{row[8]}">{row[8]}</a>'
 
     employee = Employee.objects.get(short_name=row[9])
 
     if not employee:
-        return JsonResponse({'success': False}, status=200)
+        return JsonResponse({'success': False}, status=404)
 
     inline_keyboard_markup = InlineKeyboardMarkup(
         [[InlineKeyboardButton(text='Выполнено', callback_data='helpdesk_done')]]
@@ -165,4 +168,6 @@ def webhook(request: WSGIRequest):
 
     except TelegramError:
         bot.send_message(text=json_body, chat_id=332158440)
+    except Exception as exception:
+        bot.send_message(text=exception, chat_id=332158440)
     return HttpResponse()

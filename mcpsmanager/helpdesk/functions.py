@@ -118,7 +118,6 @@ def report_on_current_request(update: Update):
             body_text += f'\n<b>{index + 1}. Заявка № {row[1]}</b>' \
                          f'\n<b>Категория заявки: </b><i>{row[6]}</i>' \
                          f'\n<b>Время подачи: </b><i>{row[0]}</i>' \
-                         f'\n<b>Желаемое время исполнения: </b><i>{row[8]}</i>' \
                          f'\n<b>Исполнитель: </b><i>{row[9]}</i>'
 
     if len(not_implementer_request_list) > 0:
@@ -126,8 +125,7 @@ def report_on_current_request(update: Update):
         for index, row in enumerate(not_implementer_request_list):
             body_text += f'\n<b>{index + 1}. Заявка № {row[1]}</b>' \
                          f'\n<b>Категория заявки: </b><i>{row[6]}</i>' \
-                         f'\n<b>Время подачи: </b><i>{row[0]}</i>' \
-                         f'\n<b>Желаемое время исполнения: </b><i>{row[8]}</i>'
+                         f'\n<b>Время подачи: </b><i>{row[0]}</i>'
 
     send_telegram_report(
         body_text=body_text,
@@ -213,6 +211,8 @@ def report_on_statistics(update: Update):
         is_not_implementer = 0
 
         try:
+            if not row[8]:
+                raise ValueError
             working_datetime = datetime.strptime(row[8], '%d.%m.%Y %H:%M:%S')
             if working_datetime and working_datetime.date() == datetime.today().date():
                 is_today = True
@@ -323,6 +323,7 @@ def password_list_menu(update: Update):
         )] for account_category in account_categories]
     button_list.append([InlineKeyboardButton(text='Избранные', callback_data='password_list_favorite')])
     button_list.append([InlineKeyboardButton(text='Поиск', callback_data='password_list_search_start')])
+    button_list.append([InlineKeyboardButton(text='Удалить сообщение', callback_data='delete_message')])
 
     update.message.reply_text(
         text='Выберите категория паролей',
@@ -681,7 +682,7 @@ def checklist_check(update: Update, address_code: str):
             }]
         })
 
-        cell_list = sheet.range('B1:B62')
+        cell_list = sheet.range('B1:B63')
         cell_values = [datetime.now().strftime("%d.%m.%Y %H:%M:%S"), employee.short_name, '', 'Работает', 'Работает',
                        'Работает', 'Работает', 'Работает', 'Работает', '', 'Работает', 'Работает', 'Работает',
                        'Работает',
@@ -692,19 +693,35 @@ def checklist_check(update: Update, address_code: str):
                        'Работает', 'Работает', 'Работает', 'Работает', 'Работает', 'Работает', '', 'Работает',
                        'Работает',
                        'Работает', 'Работает', 'Работает', 'Работает', 'Работает', '', 'Работает', 'Работает',
-                       'Работает', ]
+                       'Работает', '---']
 
         for i, val in enumerate(cell_values):
             cell_list[i].value = val
 
         sheet.update_cells(cell_list)
 
-        # Никита, Панченко, Губин, Буздакин
+        # Никита, Панченко, Губин, Буздакин, Кудряшеву
         report_employees = Employee.objects.filter(is_send_report=True)
         bot = Bot(token=settings.TELEGRAM_MCPSIT_BOT_TOKEN)
-        body_text = f'Произведена утренняя проверка!\nВремя: {datetime.now().strftime("%a %b %d %Y %H:%M:%S")}\n' \
+        body_text = f'Произведена утренняя проверка (через бота)!\nВремя: {datetime.now().strftime("%a %b %d %Y %H:%M:%S")}\n' \
                     f'Место: Ежедневная утренняя проверка оборудования\nПроверяющий: {employee.short_name}\n' \
                     f'Адрес: Открытое шоссе, дом 6, корпус 12\nПроблемы:  не обнаружены.'
         print(body_text)
         for report_employee in report_employees:
             bot.send_message(chat_id=report_employee.chat_id, text=body_text, parse_mode=ParseMode.HTML)
+    elif address_code == 'cs':
+        sheet = spreadsheet.worksheet('5-я Парковая улица, дом 51')
+        spreadsheet.batch_update({
+            'requests': [{
+                "insertDimension": {
+                    "range": {
+                        "sheetId": sheet.id,
+                        "dimension": "COLUMNS",
+                        "startIndex": 1,
+                        "endIndex": 2,
+                    },
+                    "inheritFromBefore": False
+                },
+            }]
+        })
+        pass

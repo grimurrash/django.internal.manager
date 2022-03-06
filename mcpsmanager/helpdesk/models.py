@@ -33,9 +33,6 @@ class MessageQuerySet(models.QuerySet):
                 bot.delete_message(chat_id=obj.telegram_employee.chat_id, message_id=obj.message_id)
             except TelegramError:
                 pass
-                # bot.send_message(chat_id=obj.telegram_employee.chat_id,
-                #                  text=f'Не получилось удалить сообщение по заявке № {obj.request_number}. '
-                #                       f'Удалите его в ручную!')
 
         super(MessageQuerySet, self).delete()
 
@@ -59,9 +56,7 @@ class Message(models.Model):
         try:
             bot.delete_message(chat_id=self.telegram_employee.chat_id, message_id=self.message_id)
         except TelegramError:
-            bot.send_message(chat_id=self.telegram_employee.chat_id,
-                             text=f'Не получилось удалить сообщение по заявке № {self.request_number}. '
-                                  f'Удалите его в ручную!')
+            pass
 
         super(Message, self).delete()
 
