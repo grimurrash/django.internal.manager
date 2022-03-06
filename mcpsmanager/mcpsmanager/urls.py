@@ -22,5 +22,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('eventtimeline/', include('eventtimeline.urls')),
     path('helpdesk/', include('helpdesk.urls')),
-    path('teamsevent/', include('teamsevent.urls'))
+    path('teamsevent/', include('teamsevent.urls')),
+    path('botcollection/', include('botcollection.urls')),
 ]
