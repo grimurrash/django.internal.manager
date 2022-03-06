@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'helpdesk.apps.HelpdeskConfig',
     'teamsevent',
     'corsheaders',
+    'eventtimeline.apps.EventTimelineConfig',
 ]
 
 MIDDLEWARE = [
