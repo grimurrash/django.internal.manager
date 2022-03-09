@@ -50,7 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'helpdesk.apps.HelpdeskConfig',
     'teamsevent',
-    'botcollection.apps.BotcollectionConfig'
+    'botcollection.apps.BotcollectionConfig',
     'corsheaders',
     'eventtimeline.apps.EventTimelineConfig',
 ]
