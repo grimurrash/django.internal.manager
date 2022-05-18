@@ -1,0 +1,203 @@
+import gspread
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+from museumregistration.utils import MicrosoftGraph
+
+
+class RegistrationMember(models.Model):
+    surname = models.CharField('Фамилия', max_length=100)
+    first_name = models.CharField('Имя', max_length=100)
+    last_name = models.CharField('Отчество', max_length=100)
+    date_of_birth = models.DateField('Дата рождения', blank=False, null=False)
+    parent_fullname = models.CharField('Фамилия', max_length=255)
+    phone_number = models.CharField('Телефон', max_length=20)
+    reserve_phone_number = models.CharField('Телефон', max_length=20)
+    email = models.CharField('Электронная почта', max_length=100)
+    actual_address = models.CharField('Фактический адрес', max_length=255)
+    school = models.CharField('Школа', max_length=255)
+    documents_link = models.CharField('Ссылка на архив с файлами', max_length=255)
+
+    class FamilyStatus(models.IntegerChoices):
+        NO_STATUS = 0, _('Без статуса')
+        LARGE_FAMILY = 1, _('Многодетная')
+        POORLY_SECURED = 2, _('Малообеспеченная')
+        NO_GUARDIANSHIP = 3, _('Без попечения')
+        INVALID = 4, _('Инвалид 3 гр.')
+
+    class AgeGroup(models.IntegerChoices):
+        FROM_EIGHT_TO_TEN = 0, _('От 8 до 10 лет')
+        FROM_ELEVEN_TO_THIRTEEN = 1, _('От 11 до 13 лет')
+
+    class Direction(models.IntegerChoices):
+        TECHNICAL = 0, _('Техническое')
+        HISTORY = 1, _('Историческое')
+        CIVIL_PATRIOTIC = 2, _('Гражданско - патриотическое')
+        MEDIA = 3, _('Медиа')
+        MURZILKI = 4, _('Мурзилки')
+        ENVIRONMENT = 5, _('Экологическое')
+        CHILDREBN_SELF_GOVERNMENT = 6, _('Детское самоуправление')
+        WE_ARE_THE_WORLD = 7, _('Мы- это мир')
+        CREATIVE = 8, _('Творческое')
+
+    class Shift(models.IntegerChoices):
+        ONE = 0, _('30 мая - 3 июня')
+        TWO = 1, _('6 - 10 июня')
+        THREE = 2, _('13 - 17 июня')
+        FOUR = 3, _('20 - 24 июня')
+        FIVE = 4, _('27 июня - 01 июля')
+        SIX = 5, _('4 - 8 июля')
+        SEVEN = 6, _('11 - 15 июля')
+        EIGHT = 7, _('18 - 22 июля')
+        NINE = 8, _('25 - 29 июля')
+        TEN = 9, _('1 - 5 августа')
+        ELEVEN = 10, _('8 - 12 августа')
+        TWELVE = 11, _('15 - 19 августа')
+        THIRTEEN = 12, _('22 - 26 августа')
+
+    family_status = models.IntegerField(choices=FamilyStatus.choices, default=FamilyStatus.LARGE_FAMILY)
+    direction = models.IntegerField(choices=Direction.choices, default=Direction.TECHNICAL)
+    age_group = models.IntegerField(choices=AgeGroup.choices, default=AgeGroup.FROM_EIGHT_TO_TEN)
+    shift = models.IntegerField(choices=Shift.choices, default=Shift.ONE)
+
+    def get_family_status(self):
+        return self.FamilyStatus(self.family_status).label
+
+    def get_direction(self):
+        return self.Direction(self.direction).label
+
+    def get_age_group(self):
+        return self.AgeGroup(self.age_group).label
+
+    def get_shift(self):
+        return self.Shift(self.shift).label
+
+    def get_date_of_birth(self):
+        return
+
+    def __str__(self):
+        return f'{self.surname} {self.first_name} {self.last_name}; {self.school}'
+
+    class Meta:
+        verbose_name = 'Заявка на участие'
+        verbose_name_plural = 'Заявки на участие'
+        ordering = ['-id']
+
+    objects = models.QuerySet.as_manager()
+
+    @classmethod
+    def registation_limit(cls):
+        registration_members = cls.objects.all()
+        limit = {}
+        for shiftChoice in cls.Shift.choices:
+            shift = shiftChoice[0]
+            limit.setdefault(shift, {
+                cls.Direction.TECHNICAL: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 25,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 25,
+                },
+                cls.Direction.MEDIA: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+                cls.Direction.HISTORY: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+                cls.Direction.MURZILKI: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 30,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 0,
+                },
+                cls.Direction.CHILDREBN_SELF_GOVERNMENT: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 0,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 30,
+                },
+                cls.Direction.ENVIRONMENT: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+                cls.Direction.CREATIVE: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+                cls.Direction.CIVIL_PATRIOTIC: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+                cls.Direction.WE_ARE_THE_WORLD: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                },
+            })
+            for direction in limit[shift]:
+                for age in limit[shift][direction]:
+                    new_value = limit[shift][direction][age] - registration_members.filter(
+                        direction=direction,
+                        age_group=age,
+                        shift=shift
+                    ).count()
+                    limit[shift][direction][age] = new_value
+        limit[0][0][0] = 0
+        return limit
+
+    def save_to_google_table(self, spreadsheet_id):
+        def next_available_row(worksheet):
+            str_list = list(filter(None, worksheet.col_values(1)))
+            return str(len(str_list) + 1)
+
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(spreadsheet_id)
+        sheet = spreadsheet.worksheet('Участники')
+        next_row = next_available_row(sheet)
+        sheet.update(f'A{next_row}', [
+            [str(self.surname), str(self.first_name), str(self.last_name), str(self.date_of_birth),
+             str(self.actual_address), str(self.school),
+             str(self.parent_fullname), str(self.phone_number), str(self.reserve_phone_number), str(self.email),
+             str(self.get_family_status()), str(self.get_direction()),
+             str(self.get_age_group()), str(self.get_shift()), str(self.documents_link)]])
+
+    def send_email_notification(self):
+        shift_start_dates = {
+            0: "30 мая",
+            1: "6 июня",
+            2: "13 июня",
+            3: "20 июня",
+            4: "27 июня",
+            5: "4 июля",
+            6: "11 июля",
+            7: "18 июля",
+            8: "25 июля",
+            9: "1 августа",
+            10: "8 августа",
+            11: "15 августа",
+            12: "22 августа",
+        }
+
+        start_date = shift_start_dates.get(self.shift)
+        from_addr = "leto_pobed@cpvs.moscow"
+        support_addr = ''
+        content = f"""
+            <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования и 
+            науки орода Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
+            <p>Ждем вас {start_date} в Клубе с 08.00.</p>
+            <p>Просим не забыть медицинскую справку об эпидокружении ребенка.</p>
+        """
+
+        send_result = MicrosoftGraph.send_mail(
+            from_address=from_addr,
+            to_address=str(self.email),
+            message=content,
+            subject='Регистрация на "Городской детский клуб "Лето Побед"'
+        )
+        if not send_result and support_addr:
+            MicrosoftGraph.send_mail(
+                from_address=from_addr,
+                to_address=support_addr,
+                message=f"""
+                ФИО ребенка: {self.surname} {self.first_name} {self.last_name}
+                ФИО родителя: {self.parent_fullname}
+                Электронная почта: {self.email}
+                Телефон: {self.phone_number}
+                """,
+                subject='Не получилось отправить письмо о подтверждении регистрации'
+            )

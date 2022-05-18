@@ -37,6 +37,7 @@ CORS_ORIGIN_WHITELIST = (
     'http://localhost:3000',
     'http://localhost:8000',
     'http://localhost:8080',
+    'http://localhost:8081',
 )
 # Application definition
 
@@ -53,6 +54,8 @@ INSTALLED_APPS = [
     'botcollection.apps.BotcollectionConfig',
     'corsheaders',
     'eventtimeline.apps.EventTimelineConfig',
+    'museumregistration.apps.MuseumRegistrationConfig',
+    'answerstoquestions'
 ]
 
 MIDDLEWARE = [
@@ -153,6 +156,10 @@ GOOGLE_CREDENTIALS_FILE_PATH = os.path.join(ROOT_DIR, env('GOOGLE_CREDENTIALS_FI
 # google tables
 GOOGLE_HELPDESK_SPREADSHEET_ID = env('GOOGLE_HELPDESK_SPREADSHEET_ID')
 GOOGLE_CHECKLIST_SPREADSHEET_ID = env('GOOGLE_CHECKLIST_SPREADSHEET_ID')
+GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID = env('GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID')
+
+# google folders
+GOOGLE_MUSEUMREGISTRATION_DOCUMENTS_FOLDER_ID = env('GOOGLE_MUSEUMREGISTRATION_DOCUMENTS_FOLDER_ID')
 
 # HELP DESK SETTING
 TELEGRAM_MCPSIT_BOT_TOKEN = env('TELEGRAM_MCPSIT_BOT_TOKEN')

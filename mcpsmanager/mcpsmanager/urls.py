@@ -24,4 +24,6 @@ urlpatterns = [
     path('helpdesk/', include('helpdesk.urls')),
     path('teamsevent/', include('teamsevent.urls')),
     path('botcollection/', include('botcollection.urls')),
+    path('museumregistration/', include('museumregistration.urls')),
+    path('answerstoquestions/', include('answerstoquestions.urls'))
 ]
