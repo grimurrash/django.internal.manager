@@ -1,9 +1,12 @@
 .env
-/.idea
-/venv
-/djangoenv
-/static/admin
-/static/grappelli
+/.idea/
+/venv/
+/djangoenv/
+/static/admin/
+/static/grappelli/
 credentials.json
 passenger_wsgi.py
 .restart-app
+/mcpsmanager/uploads/
+/uploads/
+/tmp/

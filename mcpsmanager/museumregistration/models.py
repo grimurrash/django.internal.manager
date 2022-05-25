@@ -137,7 +137,6 @@ class RegistrationMember(models.Model):
                         shift=shift
                     ).count()
                     limit[shift][direction][age] = new_value
-        limit[0][0][0] = 0
         return limit
 
     def save_to_google_table(self, spreadsheet_id):
@@ -177,10 +176,10 @@ class RegistrationMember(models.Model):
         from_addr = "leto_pobed@cpvs.moscow"
         support_addr = ''
         content = f"""
-            <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования и 
-            науки орода Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
-            <p>Ждем вас {start_date} в Клубе с 08.00.</p>
-            <p>Просим не забыть медицинскую справку об эпидокружении ребенка.</p>
+            <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования 
+            и науки орода Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
+            <br>
+            <p>Заявка на рассмотрение, ожидайте повторное письмо с подтверждением.</p>
         """
 
         send_result = MicrosoftGraph.send_mail(

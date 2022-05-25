@@ -1,8 +1,5 @@
-import base64
 import json
-
 from django.core.files.uploadedfile import InMemoryUploadedFile
-from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from django.core.files.storage import default_storage
@@ -96,7 +93,4 @@ class MicrosoftGraph:
         result = client.post(url=f'/users/{from_address}/sendMail',
                              data=json.dumps(body),
                              headers={'Content-Type': 'application/json'})
-        if not result:
-            return True
-
-        return False
+        return result.ok

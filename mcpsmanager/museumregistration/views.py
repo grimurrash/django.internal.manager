@@ -67,18 +67,23 @@ def save_museum_registation_member(request: WSGIRequest):
             date_of_birth=date_of_birth.strftime('%Y-%m-%d')
         ).count()
         if member_registration_count >= 2:
-            return JsonResponse({'status': False, 'message': 'Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
+            return JsonResponse(
+                {'status': False, 'message': 'Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
 
         registation_limit = RegistrationMember.registation_limit()
-
-        if int(registation_limit[int(data['selectedShift'])][int(data['selectedDirection'])][int(data['selectedAgeGroup'])]) <= 0:
+        if int(registation_limit[int(data['selectedShift'])][int(data['selectedDirection'])]
+               [int(data['selectedAgeGroup'])]) <= 0:
             return JsonResponse({'status': False, 'message': 'В данной смене не осталось мест.'})
 
         google_drive = GoogleDrive(settings.GOOGLE_CREDENTIALS_FILE_PATH)
         member_folder_name = f'{surname} {first_name} {last_name} | ' + date_of_birth.strftime('%d.%m.%Y')
-        member_folder_id = google_drive.create_folder(name=member_folder_name,
-                                                      folder_id=settings.GOOGLE_MUSEUMREGISTRATION_DOCUMENTS_FOLDER_ID)
-        member_folder_id = member_folder_name
+        # member_folder_id = google_drive.create_folder(name=member_folder_name,
+        #                                               folder_id=settings.GOOGLE_MUSEUMREGISTRATION_DOCUMENTS_FOLDER_ID)
+        shift = dict(RegistrationMember.Shift.choices)[int(data['selectedShift'])]
+        age_group = dict(RegistrationMember.AgeGroup.choices)[int(data['selectedAgeGroup'])]
+        direction = dict(RegistrationMember.Direction.choices)[int(data['selectedDirection'])]
+        member_folder_id = f"/{shift}/{direction}/{age_group}/{member_folder_name}"
+
         if files.get('familyStatusFile'):
             google_drive.create_file(file=files.get('familyStatusFile'), file_name="Подтверждение статуса семьи",
                                      folder_id=member_folder_id)

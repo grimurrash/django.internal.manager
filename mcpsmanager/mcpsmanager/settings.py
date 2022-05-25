@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'eventtimeline.apps.EventTimelineConfig',
     'museumregistration.apps.MuseumRegistrationConfig',
-    'answerstoquestions'
+    'answerstoquestions',
+    'eventregistration',
 ]
 
 MIDDLEWARE = [
@@ -139,6 +140,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = 'static/'
+UPLOADS_ROOT = os.path.join(BASE_DIR, 'uploads/')
+UPLOADS_URL = '/uploads/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field
