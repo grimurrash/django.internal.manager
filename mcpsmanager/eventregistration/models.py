@@ -22,6 +22,15 @@ class Event(models.Model):
     name = models.CharField('Наименование', max_length=255)
     slug = models.CharField('Анг наименование (используется для ссылки)', max_length=255, unique=True)
 
+    header_text = models.TextField('Шапка сайта', default='', blank=True)
+    background_image = models.FileField(
+        'Фоновое изображение',
+        upload_to='uploads/background/%Y-%m-%d/',
+        default=None,
+        blank=True,
+        null=True
+    )
+
     limit_for_one_user = models.PositiveIntegerField('Лимит регистраций для одного пользователя', default=100)
 
     is_save_google_table = models.BooleanField('Сохранять в гугл таблице', default=False)
@@ -58,10 +67,16 @@ class Event(models.Model):
         age_groups = AgeGroup.objects.filter(event=self).order_by('id')
         directions = Direction.objects.filter(event=self).order_by('id')
         limits = EventLimit.objects.filter(event=self)
+        background_image = ''
+        if self.background_image:
+            background_image = self.background_image.url
+
         return {
             'id': int(self.id),
             'name': str(self.name),
             'slug': str(self.slug),
+            'header_text': self.header_text,
+            'background_image': background_image,
             'shifts': shifts.to_list(),
             'age_groups': age_groups.to_list(),
             'directions': directions.to_list(),
