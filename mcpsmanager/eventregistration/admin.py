@@ -15,46 +15,46 @@ class EventAdmin(admin.ModelAdmin):
 
 
 class ShiftAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'shift_start_date', 'shift_end_date', 'event')
-    search_fields = ('id', 'name', 'event')
+    list_display = ('id', 'order', 'name', 'shift_start_date', 'shift_end_date', 'event')
+    search_fields = ('id', 'name', 'event__name')
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event',)
     fieldsets = ()
     ordering = ('-id',)
 
 
 class AgeGroupAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'min', 'max', 'event')
-    search_fields = ('id', 'name', 'max', 'max', 'event')
+    list_display = ('id', 'order', 'name', 'min', 'max', 'event')
+    search_fields = ('id', 'name', 'max', 'max', 'event__name')
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event',)
     fieldsets = ()
     ordering = ('-id',)
 
 
 class DirectionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'event')
-    search_fields = ('id', 'name', 'event')
+    list_display = ('id', 'order', 'name', 'event')
+    search_fields = ('id', 'name', 'event__name')
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event',)
     fieldsets = ()
     ordering = ('-id',)
 
 
 class EventLimitAdmin(admin.ModelAdmin):
     list_display = ('id', 'event', 'limit', 'free_seats', 'shift', 'direction', 'age_group')
-    search_fields = ('id', 'event', 'shift', 'direction', 'age_group')
+    search_fields = ('id', 'event__name', 'shift__name', 'direction__name', 'age_group__name')
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event', 'shift', 'age_group', 'direction')
     fieldsets = ()
     ordering = ('-id',)
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'event', 'is_have_checkbox', 'checkbox_text', 'is_upload', 'show_conditions')
-    search_fields = ('id', 'name', 'event')
+    list_display = ('id', 'order', 'name', 'event', 'is_have_checkbox', 'checkbox_text', 'is_upload', 'show_conditions')
+    search_fields = ('id', 'order', 'name', 'event__name')
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event', )
     fieldsets = ()
     ordering = ('-id',)
 
@@ -64,10 +64,11 @@ class ParticipantAdmin(admin.ModelAdmin):
         'id', 'surname', 'first_name', 'last_name', 'date_of_birth', 'email', 'event', 'shift', 'age_group', 'direction'
     )
     search_fields = (
-        'id', 'surname', 'first_name', 'last_name', 'date_of_birth', 'email', 'event', 'shift', 'age_group', 'direction'
+        'id', 'surname', 'first_name', 'last_name', 'date_of_birth', 'email', 'event__name', 'shift__name',
+        'age_group__name', 'direction__name'
     )
     filter_horizontal = ()
-    list_filter = ()
+    list_filter = ('event', 'shift', 'age_group', 'direction')
     fieldsets = ()
     ordering = ('-id',)
 

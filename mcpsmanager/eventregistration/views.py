@@ -75,3 +75,13 @@ def save_registration(request: WSGIRequest, event_slug: str):
                        'Просьба попробывать снова через несколько часов',
             'error': str(error)
         })
+
+
+@csrf_exempt
+def refresh_google_table(_, event_slug: str):
+    event = Event.objects.get(slug=event_slug)
+    count = RegistrationMethod.refresh_google_table(event=event)
+    return JsonResponse({
+        'status': True,
+        'count': count
+    })

@@ -3,6 +3,7 @@ from datetime import datetime
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from pathlib import Path
+import urllib.parse
 import json
 
 
@@ -71,10 +72,10 @@ class RegistrationMethod:
                 participant_data.setdefault('shift', str(shift))
             if data.get('age_group_id'):
                 age_group = AgeGroup.objects.get(id=int(data.pop('age_group_id')))
-                participant_data.setdefault('age_group', str(shift))
+                participant_data.setdefault('age_group', str(age_group))
             if data.get('direction_id'):
                 direction = Direction.objects.get(id=int(data.pop('direction_id')))
-                participant_data.setdefault('direction', str(shift))
+                participant_data.setdefault('direction', str(direction))
 
             check_limit = EventLimit.objects.get(
                 event=event,
@@ -177,19 +178,24 @@ class RegistrationMethod:
                     )
                 except Event.SaveDataToGoogleTableError as error:
                     if event.support_email_address:
+                        report_message = ''
+                        for value in save_data:
+                            report_message += f'<p>{value}</p>'
                         event.send_support(
                             subject="Не удалось добавить в гугл таблицу информацию о регистрации!",
-                            message=f"<p>Ошибка: {str(error)}</p>\n" + json.dumps(save_data))
+                            message=f"<p>Ошибка: {str(error)}</p>\n" + report_message
+                        )
 
             if event.is_send_registration_mail_notification:
                 participant_data.setdefault('event', str(event))
-                MailNotification.send_registration_mail_notification(
+                is_send = MailNotification.send_registration_mail_notification(
                     event=event,
                     email=email,
                     data=participant_data
                 )
-                participant.is_send_registration_mail = True
-                participant.save()
+                if is_send:
+                    participant.is_send_registration_mail = True
+                    participant.save()
         except OneUserRegistrationLimitError as error:
             raise error
         except NotFreeSeatsError as error:
@@ -202,6 +208,72 @@ class RegistrationMethod:
             raise ParticipantDataSaveError(str(error))
         except Exception as exception:
             raise RegistrationError(str(exception))
+
+    @classmethod
+    def refresh_google_table(cls, event: Event):
+        if event.is_save_google_table:
+            all_participant = Participant.objects.filter(event=event)
+            all_save_data = dict()
+            for participant in all_participant:
+                save_data = [
+                    participant.id,
+                    participant.surname,
+                    participant.first_name,
+                    participant.last_name,
+                    participant.date_of_birth.strftime('%d-%m-%Y'),
+                    participant.email,
+                ]
+                if participant.additionally_data:
+                    data = json.loads(participant.additionally_data)
+                    for key, value in data.items():
+                        save_data.append(str(value))
+
+                if participant.shift:
+                    save_data.append(str(participant.shift))
+                if participant.age_group:
+                    save_data.append(str(participant.age_group))
+                if participant.direction:
+                    save_data.append(str(participant.direction))
+
+                if participant.files_dir:
+                    save_data.append(str(participant.files_dir))
+                try:
+                    limit = EventLimit.objects.get(
+                        event=event,
+                        shift=participant.shift,
+                        age_group=participant.age_group,
+                        direction=participant.direction
+                    )
+                except Exception as ex:
+                    continue
+
+                if all_save_data.get(limit.get_name()):
+                    all_save_data[limit.get_name()].append(save_data)
+                else:
+                    all_save_data.setdefault(limit.get_name(), [save_data])
+
+            if not event.is_save_google_table or not event.google_spreadsheet_id:
+                return
+
+            gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+            spreadsheet = gc.open_by_key(str(event.google_spreadsheet_id))
+            worksheets = list(spreadsheet.worksheets())
+
+            for table_name, save_data in all_save_data.items():
+                is_exist_sheet = False
+                for worksheet in worksheets:
+                    if worksheet.title == table_name:
+                        is_exist_sheet = True
+                        break
+
+                if is_exist_sheet:
+                    continue
+                else:
+                    sheet = spreadsheet.add_worksheet(table_name, len(save_data) + 1, len(save_data[0]) + 1)
+                    worksheets.append(sheet)
+
+                sheet.update(f'A1', save_data)
+            return len(all_participant)
 
 
 class MailNotification:
@@ -217,8 +289,14 @@ class MailNotification:
             )
             if not send_result:
                 raise SendRegistrationMailNotificationError()
+            return True
         except Exception as exception:
             if event.support_email_address:
+                report_message = ''
+                for key, value in data.items():
+                    report_message += f'<p>{key}: {value}</p>'
                 event.send_support(
                     subject="Не удалось добавить в гугл таблицу информацию о регистрации!",
-                    message=f"<p>Ошибка: {type(exception)} | {exception}</p>\n" + json.dumps(data))
+                    message=f"<p>Ошибка: {type(exception)} | {exception}</p>\n" + report_message
+                )
+            return False

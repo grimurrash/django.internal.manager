@@ -1,7 +1,10 @@
+from datetime import datetime
+
 import gspread
 from django.db import models
 from django.conf import settings
 from gspread import Worksheet
+from django.db.models import Q
 from museumregistration.utils import MicrosoftGraph
 
 
@@ -62,10 +65,12 @@ class Event(models.Model):
         return self.name
 
     def get_full_info(self):
-        documents = Documents.objects.filter(event=self).order_by('id')
-        shifts = Shift.objects.filter(event=self).order_by('id')
-        age_groups = AgeGroup.objects.filter(event=self).order_by('id')
-        directions = Direction.objects.filter(event=self).order_by('id')
+        documents = Documents.objects.filter(event=self)
+        now_date = datetime.now()
+        shifts = Shift.objects.filter(Q(event=self) & Q(status=True)
+                                      & Q(Q(shift_start_date=None) | Q(shift_start_date__gte=now_date)))
+        age_groups = AgeGroup.objects.filter(event=self, status=True)
+        directions = Direction.objects.filter(event=self, status=True)
         limits = EventLimit.objects.filter(event=self)
         background_image = ''
         if self.background_image:
@@ -92,7 +97,7 @@ class Event(models.Model):
 
             def next_available_row(l_worksheet: Worksheet):
                 str_list = list(filter(None, l_worksheet.col_values(1)))
-                return str(len(str_list) + 1)
+                return len(str_list) + 1
 
             gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
             spreadsheet = gc.open_by_key(str(self.google_spreadsheet_id))
@@ -106,12 +111,18 @@ class Event(models.Model):
             print(is_exist_sheet)
             if is_exist_sheet:
                 sheet = spreadsheet.worksheet(table_name)
+                values = list(sheet.get_all_values())
             else:
-                sheet = spreadsheet.add_worksheet(table_name, 100, 500)
-            print(sheet)
+                sheet = spreadsheet.add_worksheet(table_name, 1, len(data) + 1)
+                values = []
+
             next_row = next_available_row(sheet)
             print(next_row)
             print(data)
+            sheet.add_rows(1)
+            if len(values) > 0 and len(data) > len(values[-1]):
+                sheet.add_cols(len(data) - len(values[-1]))
+
             sheet.update(f'A{next_row}', [data])
         except Exception as exception:
             raise self.SaveDataToGoogleTableError(str(exception))
@@ -129,7 +140,7 @@ class Documents(models.Model):
     class Meta:
         verbose_name = 'Документ'
         verbose_name_plural = 'Документы'
-        ordering = ['-id']
+        ordering = ['order', 'id']
 
     name = models.CharField('Наименование', max_length=255)
     btn_name = models.CharField('Текст в кнопке', max_length=255, default='')
@@ -139,6 +150,7 @@ class Documents(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, verbose_name='Мероприятие')
     is_upload = models.BooleanField('Нужно ли пользователю загружать документ?', default=False)
     show_conditions = models.CharField('Специальные условия вывода', max_length=50, default=None, null=True, blank=True)
+    order = models.PositiveIntegerField('Порядок', default=0, blank=True)
 
     objects = QuerySet.as_manager()
 
@@ -163,12 +175,14 @@ class Shift(models.Model):
     class Meta:
         verbose_name = 'Смена'
         verbose_name_plural = 'Смены'
-        ordering = ['-id']
+        ordering = ['order', 'id']
 
     name = models.CharField('Наименование', max_length=255)
     shift_start_date = models.DateTimeField('Дата начала', blank=True, null=True)
     shift_end_date = models.DateTimeField('Дата завершения', blank=True, null=True)
     event = models.ForeignKey(Event, on_delete=models.CASCADE, verbose_name='Мероприятие')
+    order = models.PositiveIntegerField('Порядок', default=0, blank=True)
+    status = models.BooleanField('Активный', default=True, blank=True)
     objects = QuerySet.as_manager()
 
     def __str__(self):
@@ -188,12 +202,14 @@ class AgeGroup(models.Model):
     class Meta:
         verbose_name = 'Возрастная группа'
         verbose_name_plural = 'Возрастная группы'
-        ordering = ['-id']
+        ordering = ['order', 'id']
 
     name = models.CharField('Наименование', max_length=255)
     min = models.PositiveIntegerField('Минимальный возраст', default=None, blank=True, null=True)
     max = models.PositiveIntegerField('Максимальный возраст', default=None, blank=True, null=True)
     event = models.ForeignKey(Event, on_delete=models.CASCADE, verbose_name='Мероприятие')
+    order = models.PositiveIntegerField('Порядок', default=0, blank=True)
+    status = models.BooleanField('Активный', default=True, blank=True)
     objects = QuerySet.as_manager()
 
     def __str__(self):
@@ -213,10 +229,12 @@ class Direction(models.Model):
     class Meta:
         verbose_name = 'Направление'
         verbose_name_plural = 'Направления'
-        ordering = ['-id']
+        ordering = ['order', 'id']
 
     name = models.CharField('Наименование', max_length=255)
     event = models.ForeignKey(Event, on_delete=models.CASCADE, verbose_name='Мероприятие')
+    order = models.PositiveIntegerField('Порядок', default=0, blank=True)
+    status = models.BooleanField('Активный', default=True, blank=True)
     objects = QuerySet.as_manager()
 
     def __str__(self):
@@ -293,9 +311,11 @@ class Participant(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, verbose_name='Мероприятие')
     shift = models.ForeignKey(Shift, on_delete=models.CASCADE, verbose_name='Смена', null=True, blank=True,
                               default=None)
-    age_group = models.ForeignKey(AgeGroup, on_delete=models.CASCADE, verbose_name='Смена', null=True, blank=True,
+    age_group = models.ForeignKey(AgeGroup, on_delete=models.CASCADE, verbose_name='Возростная группа', null=True,
+                                  blank=True,
                                   default=None)
-    direction = models.ForeignKey(Direction, on_delete=models.CASCADE, verbose_name='Смена', null=True, blank=True,
+    direction = models.ForeignKey(Direction, on_delete=models.CASCADE, verbose_name='Направление', null=True,
+                                  blank=True,
                                   default=None)
     files_dir = models.CharField('Папка с файлами', max_length=255, default=None, blank=True, null=True)
 
