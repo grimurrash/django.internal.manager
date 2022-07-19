@@ -6,8 +6,8 @@ from museumregistration.utils import MicrosoftGraph
 
 
 class RegistrationMember(models.Model):
-    surname = models.CharField('Фамилия', max_length=100)
-    first_name = models.CharField('Имя', max_length=100)
+    surname = models.CharField('Имя', max_length=100)
+    first_name = models.CharField('Фамилия', max_length=100)
     last_name = models.CharField('Отчество', max_length=100)
     date_of_birth = models.DateField('Дата рождения', blank=False, null=False)
     parent_fullname = models.CharField('Фамилия', max_length=255)
@@ -149,7 +149,8 @@ class RegistrationMember(models.Model):
         sheet = spreadsheet.worksheet('Участники')
         next_row = next_available_row(sheet)
         sheet.update(f'A{next_row}', [
-            [str(self.surname), str(self.first_name), str(self.last_name), str(self.date_of_birth),
+            [str(self.surname), str(self.first_name), str(self.last_name),
+             str(self.date_of_birth)[0:10],
              str(self.actual_address), str(self.school),
              str(self.parent_fullname), str(self.phone_number), str(self.reserve_phone_number), str(self.email),
              str(self.get_family_status()), str(self.get_direction()),

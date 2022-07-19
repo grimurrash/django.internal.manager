@@ -1,4 +1,8 @@
 from datetime import datetime
+
+import gspread
+import collections
+from gspread import Worksheet
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -20,12 +24,34 @@ def museum_registation_limit(_):
     if datetime.now() > datetime(2022, 7, 11):
         shift_open_date = 13
 
+    disabled_date = 0
+    if datetime.now() > datetime(2022, 6, 27):
+        disabled_date = 4
+    if datetime.now() > datetime(2022, 7, 4):
+        disabled_date = 5
+    if datetime.now() > datetime(2022, 7, 11):
+        disabled_date = 6
+    if datetime.now() > datetime(2022, 7, 18):
+        disabled_date = 7
+    if datetime.now() > datetime(2022, 7, 25):
+        disabled_date = 8
+    if datetime.now() > datetime(2022, 8, 1):
+        disabled_date = 9
+    if datetime.now() > datetime(2022, 8, 8):
+        disabled_date = 10
+    if datetime.now() > datetime(2022, 8, 15):
+        disabled_date = 11
+    if datetime.now() > datetime(2022, 8, 22):
+        disabled_date = 12
+
     for shift_key in shift_dates.keys():
         if shift_key >= shift_open_date:
             shifts.setdefault(shift_key, {
                 'name': shift_dates[shift_key],
                 'visible': False
             })
+        elif shift_key <= disabled_date:
+            continue
         else:
             shifts.setdefault(shift_key, {
                 'name': shift_dates[shift_key],
@@ -55,9 +81,9 @@ def save_museum_registation_member(request: WSGIRequest):
         data = request.POST.dict()
         files = request.FILES.dict()
 
-        surname = data['surname']
-        first_name = data['firstname']
-        last_name = data['lastname']
+        surname = str(data['surname']).strip()
+        first_name = str(data['firstname']).strip()
+        last_name = str(data['lastname']).strip()
         date_of_birth = datetime.fromtimestamp(int(data['dateOfBirth']))
 
         member_registration_count = RegistrationMember.objects.filter(
@@ -150,3 +176,45 @@ def save_museum_registation_member(request: WSGIRequest):
             'message': 'Приносим извинения ведутся технические работы.',
             'error': str(exception)
         })
+
+
+def refresh_google_table(_):
+    all_member = RegistrationMember.objects.filter(shift__gte=5).all()
+    def next_available_row(worksheet):
+        str_list = list(filter(None, worksheet.col_values(1)))
+        return str(len(str_list) + 1)
+
+    gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+    spreadsheet = gc.open_by_key('152bP-qXWK0tbj4kn9bOqu29JNv5jH8XLc6Hn1KH24zY')
+    sheet = spreadsheet.worksheet('Участники')
+    rows = sheet.get_all_values()
+    add_member = list()
+    for member in all_member:
+        member_list = [str(member.surname), str(member.first_name), str(member.last_name),
+                       member.date_of_birth.strftime('%Y-%m-%d'),
+                       str(member.actual_address), str(member.school),
+                       str(member.parent_fullname), str(member.phone_number), str(member.reserve_phone_number),
+                       str(member.email),
+                       str(member.get_family_status()), str(member.get_direction()),
+                       str(member.get_age_group()), str(member.get_shift()), str(member.documents_link)]
+        is_add = True
+        for row in rows:
+            row = row[0:15]
+            row[3] = row[3][0:10]
+            if collections.Counter(member_list) == collections.Counter(row[0:15]):
+                is_add = False
+                break
+        if is_add:
+            add_member.append(member_list)
+
+    next_row = next_available_row(sheet)
+    sheet.update(f'A{next_row}', add_member)
+    return JsonResponse({
+        'add_member_count': len(add_member),
+        'all_member': len(all_member),
+        'add_member': add_member,
+    })
+    # next_row = next_available_row(sheet)
+    # google_values = sheet.get_all_values()
+    # print(google_values)
+    # pass
