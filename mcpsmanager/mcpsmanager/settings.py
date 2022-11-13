@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'museumregistration.apps.MuseumRegistrationConfig',
     'answerstoquestions',
     'eventregistration',
+    'surveysmanager'
 ]
 
 MIDDLEWARE = [
@@ -137,6 +138,8 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
+
+APP_URL = env('APP_URL')
 
 STATIC_URL = '/static/'
 STATIC_ROOT = 'static/'

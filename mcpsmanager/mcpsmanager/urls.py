@@ -29,4 +29,5 @@ urlpatterns = [
     path('museumregistration/', include('museumregistration.urls')),
     path('answerstoquestions/', include('answerstoquestions.urls')),
     path('eventregistration/', include('eventregistration.urls')),
+    path('surveysmanager/', include('surveysmanager.urls')),
 ] + static(settings.UPLOADS_URL, document_root=settings.UPLOADS_ROOT)

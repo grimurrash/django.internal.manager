@@ -3,7 +3,6 @@ from datetime import datetime
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from pathlib import Path
-import urllib.parse
 import json
 
 
@@ -206,6 +205,101 @@ class RegistrationMethod:
             raise NotEventLimitError(str(error))
         except (ValueError, KeyError) as error:
             raise ParticipantDataSaveError(str(error))
+        except Exception as exception:
+            raise RegistrationError(str(exception))
+
+    @classmethod
+    def avangard_transfer(cls, event: Event, data: dict, files: dict):
+        try:
+            participant_data = data.copy()
+            email = data.pop('email')
+
+            if data.get('shift_id'):
+                shift = Shift.objects.get(id=int(data.pop('shift_id')))
+                participant_data.setdefault('shift', str(shift))
+
+            if data.get('direction_id'):
+                direction = Direction.objects.get(id=int(data.pop('direction_id')))
+                participant_data.setdefault('direction', str(direction))
+
+            check_group_limit = EventLimit.objects.get(
+                event=event,
+                shift=shift,
+            )
+
+            if check_group_limit.free_seats <= 0:
+                raise NotFreeSeatsError()
+
+            check_bus_limit = EventLimit.objects.get(
+                event=event,
+                direction=direction,
+            )
+
+            if check_bus_limit.free_seats <= 0:
+                raise NotFreeSeatsError()
+
+            existence_participant_count = Participant.objects.filter(
+                email=email,
+                event=event
+            ).count()
+
+            if existence_participant_count >= event.limit_for_one_user:
+                raise OneUserRegistrationLimitError()
+
+            participant = Participant(
+                surname='not surname',
+                first_name='not first_name',
+                last_name='last_name',
+                date_of_birth=None,
+                email=email,
+                additionally_data='',
+                event=event,
+                shift=shift,
+                age_group=None,
+                direction=direction,
+            )
+            participant.save()
+            check_group_limit.free_seats -= 1
+            check_group_limit.save()
+
+            check_bus_limit.free_seats -= 1
+            check_bus_limit.save()
+
+            if event.is_save_google_table:
+                save_data = [
+                    participant.id,
+                    email,
+                ]
+                try:
+                    if shift:
+                        save_data.append(str(shift))
+                    if direction:
+                        save_data.append(str(direction))
+
+                    event.save_google_table(
+                        data=save_data,
+                        table_name=shift.name
+                    )
+                except Event.SaveDataToGoogleTableError as error:
+                    if event.support_email_address:
+                        report_message = ''
+                        for value in save_data:
+                            report_message += f'<p>{value}</p>'
+                        event.send_support(
+                            subject="Не удалось добавить в гугл таблицу информацию о регистрации!",
+                            message=f"<p>Ошибка: {str(error)}</p>\n" + report_message
+                        )
+
+            if event.is_send_registration_mail_notification:
+                participant_data.setdefault('event', str(event))
+                is_send = MailNotification.send_registration_mail_notification(
+                    event=event,
+                    email=email,
+                    data=participant_data
+                )
+                if is_send:
+                    participant.is_send_registration_mail = True
+                    participant.save()
         except Exception as exception:
             raise RegistrationError(str(exception))
 

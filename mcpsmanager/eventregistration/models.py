@@ -300,7 +300,7 @@ class Participant(models.Model):
     surname = models.CharField('Фамилия', max_length=100)
     first_name = models.CharField('Имя', max_length=100)
     last_name = models.CharField('Отчество', max_length=100)
-    date_of_birth = models.DateField('Дата рождения', blank=False, null=False)
+    date_of_birth = models.DateField('Дата рождения', blank=True, null=True)
     email = models.CharField('Электронная почта', max_length=100)
 
     additionally_data = models.JSONField('Дополнительная информация', null=True, blank=True, default=None)

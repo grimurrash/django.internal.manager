@@ -62,7 +62,7 @@ def museum_registation_limit(_):
     max_date = '2014-12-31'
 
     # Временно убрали семейный статус "без статуса"
-    family_statuses.pop(0)
+    # family_statuses.pop(0)
 
     return JsonResponse({
         'limit': registation_limit,
