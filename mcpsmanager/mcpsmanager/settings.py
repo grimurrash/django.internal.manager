@@ -57,7 +57,8 @@ INSTALLED_APPS = [
     'museumregistration.apps.MuseumRegistrationConfig',
     'answerstoquestions',
     'eventregistration',
-    'surveysmanager'
+    'surveysmanager',
+    'modeling',
 ]
 
 MIDDLEWARE = [

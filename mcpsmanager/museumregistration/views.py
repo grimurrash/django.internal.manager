@@ -2,7 +2,6 @@ from datetime import datetime
 
 import gspread
 import collections
-from gspread import Worksheet
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
