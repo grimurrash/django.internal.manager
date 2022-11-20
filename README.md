@@ -20,6 +20,8 @@ Linux: sudo dnf install python python-devel mysql-devel redhat-rpm-config gcc
 
 pip install python-msgraph
 
+pip install munch
+
 python -m pip install msgraph-core
 python -m pip install azure-identity
 
