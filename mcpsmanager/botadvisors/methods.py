@@ -11,6 +11,24 @@ from pathlib import Path
 
 
 def interview_step(user_interview: Interview, bot: Bot, update: Update):
+    if update.message.text and update.message.text == '/refresh':
+        user_interview.step = InterviewStep.start_test.value
+        user_interview.save()
+        keyboard_markup = [[
+            KeyboardButton(text='Начать тестирование'),
+        ]]
+        bot.send_message(
+            chat_id=user_interview.chat_id,
+            text='Тестирование обнулено!',
+            parse_mode=ParseMode.HTML,
+            reply_markup=ReplyKeyboardMarkup(keyboard_markup)
+        )
+    elif update.message.text and update.message.text == '/start-fresh':
+        user_interview.interview_answers = {}
+        user_interview.google_table_row = None
+        user_interview.step = InterviewStep.start.value
+        user_interview.save()
+
     if user_interview.step == InterviewStep.start.value:
         step_start(user_interview, bot)
     elif user_interview.step == InterviewStep.start_1.value:
@@ -107,7 +125,8 @@ def start_user_test(user_interview: Interview, bot: Bot, update: Update = ''):
             'answer_five_text': question.answer_five_text,
             'answer_five_balls': question.answer_five_balls,
             'answer_count': question.answer_count,
-            'try_count': 0
+            'try_count': 0,
+            'balls': 0
         })
     finish_time = datetime.now() + timedelta(minutes=60)
     user_interview.test_finish_time = finish_time
@@ -122,7 +141,7 @@ def start_user_test(user_interview: Interview, bot: Bot, update: Update = ''):
 def test_step(user_interview: Interview, bot: Bot, text: str = ''):
     question_list = dict(user_interview.questing_text)
     if len(text) > 100:
-        text = text.replace('...', '')
+        text = text.replace('…', '')
     message_text = ''
     finish_time = user_interview.test_finish_time
 
@@ -137,7 +156,6 @@ def test_step(user_interview: Interview, bot: Bot, text: str = ''):
         )
         return
     if user_interview.questing_step == -1:
-        finish_time = finish_time + timedelta(hours=3)
         message_text += 'Добрый день! \n' \
                         'Тест необходимо закончить до ' + finish_time.strftime('%Y-%m-%d %H:%M:%S') + '\n\n'
         user_interview.questing_step += 1
@@ -148,7 +166,6 @@ def test_step(user_interview: Interview, bot: Bot, text: str = ''):
             message_text += f'\nВыберите {question.answer_count} вариантов из списка'
     else:
         question = DefaultMunch.fromDict(question_list[f'{user_interview.questing_step}'])
-
         if len(text) > 100 and not question.answer_one_text.startswith(text) \
                 and not question.answer_two_text.startswith(text) \
                 and not question.answer_three_text.startswith(text) \
@@ -173,27 +190,37 @@ def test_step(user_interview: Interview, bot: Bot, text: str = ''):
             return
 
         if question.answer_one_text.startswith(text) and question.answer_one_balls == 1:
-            user_interview.questing_balls += 1
+            question.balls += 1
+            question_list[f'{user_interview.questing_step}']['balls'] += 1
         elif question.answer_two_text.startswith(text) and question.answer_two_balls == 1:
-            user_interview.questing_balls += 1
+            question.balls += 1
+            question_list[f'{user_interview.questing_step}']['balls'] += 1
         elif question.answer_three_text.startswith(text) and question.answer_three_balls == 1:
-            user_interview.questing_balls += 1
+            question.balls += 1
+            question_list[f'{user_interview.questing_step}']['balls'] += 1
         elif question.answer_four_text.startswith(text) and question.answer_four_balls == 1:
-            user_interview.questing_balls += 1
+            question.balls += 1
+            question_list[f'{user_interview.questing_step}']['balls'] += 1
         elif question.answer_five_text.startswith(text) and question.answer_five_balls == 1:
-            user_interview.questing_balls += 1
+            question.balls += 1
+            question_list[f'{user_interview.questing_step}']['balls'] += 1
 
         question.try_count += 1
         question_list[f'{user_interview.questing_step}']['try_count'] += 1
 
     if question.try_count >= question.answer_count:
+        if question.balls == question.answer_count:
+            user_interview.questing_balls += 1
+
         user_interview.questing_step += 1
         if user_interview.questing_step >= len(question_list):
             user_interview.save_test_result_to_table()
             user_interview.update_step(InterviewStep.finish)
             bot.send_message(
                 chat_id=user_interview.chat_id,
-                text=f"Вы закончили тестирование. ",
+                text=f"Спасибо, Вы закончили тестирование.Ваша анкета и результаты тестирования поступили на проверку организаторам конкурса." \
+                     f"Ожидайте, пожалуйста, приглашения ко второму этапу: творческому заданию в этом чат-боте." \
+                     f"Просим обратить внимание, что с Вами может связаться Организатор для уточнения данных, указанных в анкете." ,
                 parse_mode=ParseMode.HTML,
                 reply_markup=ReplyKeyboardRemove()
             )
@@ -246,7 +273,7 @@ def step_start(user_interview: Interview, bot: Bot):
            f" воспитанию и взаимодействию с детскими общественными объединениями!\n\n" \
            f"Для участия в конкурсе Вам необходимо внести Ваши данные в этом чат-боте\n\n" \
            f"Для начала, пожалуйста,\n\n" \
-           f"- ознакомьтесь с <a href='https://patriotsport.moscow/'>Положением о конкурсе</a>\n\n" \
+           f"- ознакомьтесь с <a href='https://patriotsport.moscow/wp-content/uploads/2022/11/dc99d9d1-794b-4b98-bd1f-56c4565229ca.pdf'>Положением о конкурсе</a>\n\n" \
            f"- дайте свое согласие на <a href='https://patriotsport.moscow/wp-content/uploads/2022/03/pril-3.pdf'>" \
            f"обработку и использование персональных данных</a>👇\n\n"
 
@@ -285,7 +312,7 @@ def step_start_2(user_interview: Interview, bot: Bot, update: Update):
                        "свидетельство о профессиональной переподготовке (при наличии))\n\n " \
                        "- вашу фотографию для анкеты\n\n" \
                        "Все документы необходимо будет загрузить в соответствующие поля чат-бота.\n\n" \
-                       "Заполнение анкеты займет у Вас около 30 минут\n\n" \
+                       "Заполнение анкеты займет у Вас около 30 минут.\n\n" \
                        "Нажмите кнопку «Правила заполнения», чтобы ознакомиться с правилами.\n\n"
         keyboard_markup = [
             [KeyboardButton(text='Правила заполнения')]
@@ -307,7 +334,7 @@ def step_start_3(user_interview: Interview, bot: Bot, update: Update):
                        "Обратите внимание, что ответы на некоторые вопросы ограничены по количеству знаков " \
                        "(это будет указано в самом вопросе).\n\n" \
                        "При загрузке материалов и изображений обращайте внимание на необходимый формат файла.\n\n" \
-                       "Если при заполнении, вы обнаружите, что допустили ошибку или хотите изменить внесенную " \
+                       "Если при заполнении вы обнаружите, что допустили ошибку или хотите изменить внесенную " \
                        "информацию, вы можете вернуться в какой-либо раздел, нажав на кнопку «меню» и выбрав " \
                        "соответствующий пункт. После внесения изменений необходимо нажать «Назад» для возврата. "
         keyboard_markup = [
@@ -341,6 +368,13 @@ def step_start_4(user_interview: Interview, bot: Bot, update: Update):
 def step_start_end(user_interview: Interview, bot: Bot, update: Update):
     text = update.message.text.encode('utf-8').decode()
     if text == 'Старт':
+        message_text = 'Блок основная информация'
+        bot.send_message(
+            chat_id=user_interview.chat_id,
+            text=message_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=ReplyKeyboardRemove()
+        )
         message_text = 'Введите Вашу ФАМИЛИЮ'
         bot.send_message(
             chat_id=user_interview.chat_id,
@@ -390,7 +424,7 @@ def step_patronymic(user_interview: Interview, bot: Bot, update: Update):
     interview_answers['patronymic'] = text if text != 'Пропустить' else ''
     user_interview.interview_answers = interview_answers
     user_interview.update_step(InterviewStep.date_of_birth)
-    message_text = 'Укажите дату рождения (в формате 20.12.2000 (День.Месяц.Год))'
+    message_text = 'Укажите дату рождения (в формате 20.12.2000 (ДД.ММ.ГГГГ))'
     bot.send_message(
         chat_id=user_interview.chat_id,
         text=message_text,
@@ -420,7 +454,7 @@ def step_date_of_birth(user_interview: Interview, bot: Bot, update: Update):
     except Exception:
         bot.send_message(
             chat_id=user_interview.chat_id,
-            text='Неверный формат даты \nПример для заполнения: <b>20.12.2000 (День.Месяц.Год)</b>',
+            text='Неверный формат даты \nПример для заполнения: <b>20.12.2000 (ДД.ММ.ГГГГ)</b>',
             parse_mode=ParseMode.HTML,
             reply_markup=ReplyKeyboardRemove()
         )
@@ -433,7 +467,7 @@ def step_gender(user_interview: Interview, bot: Bot, update: Update):
         interview_answers['gender'] = text
         user_interview.interview_answers = interview_answers
         user_interview.update_step(InterviewStep.photo)
-        message_text = 'Загрузите Вашу фотографию для анкеты (желательно в виде документа)'
+        message_text = 'Загрузите Вашу фотографию для анкеты'
         bot.send_message(
             chat_id=user_interview.chat_id,
             text=message_text,
@@ -484,7 +518,7 @@ def step_photo(user_interview: Interview, bot: Bot, update: Update):
     else:
         bot.send_message(
             chat_id=user_interview.chat_id,
-            text='Загрузите Вашу фотографию для анкеты (желательно в виде документа)',
+            text='Загрузите Вашу фотографию для анкеты',
             parse_mode=ParseMode.HTML,
         )
 
@@ -561,6 +595,13 @@ def step_social_networks(user_interview: Interview, bot: Bot, update: Update):
     interview_answers['social_networks'] = text if text != 'Пропустить' else ''
     user_interview.interview_answers = interview_answers
     user_interview.update_step(InterviewStep.education)
+    message_text = 'Блок образование'
+    bot.send_message(
+        chat_id=user_interview.chat_id,
+        text=message_text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=ReplyKeyboardRemove()
+    )
     message_text = 'Укажите уровень Вашего образования'
     keyboard_markup = [
         [
@@ -633,8 +674,15 @@ def step_place_education(user_interview: Interview, bot: Bot, update: Update):
         interview_answers['place_education'] = text
         user_interview.interview_answers = interview_answers
         user_interview.update_step(InterviewStep.place_education_2)
-        message_text = 'Укажите информацию обо всех учебных заведениях (СПО, ВО), где Вы обучались, начиная с' \
-                       ' последнего\n\n В данной графе 👇 введите название последнего учебного заведения'
+        message_text = 'Укажите информацию обо всех учебных заведениях (СПО, ВО), где Вы обучались.\n\n' \
+
+        bot.send_message(
+            chat_id=user_interview.chat_id,
+            text=message_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=ReplyKeyboardRemove()
+        )
+        message_text = 'В данной графе 👇 введите название последнего учебного заведения.' \
 
         bot.send_message(
             chat_id=user_interview.chat_id,
@@ -774,8 +822,7 @@ def step_add_education(user_interview: Interview, bot: Bot, update: Update):
     text = update.message.text.encode('utf-8').decode()
     if text == 'Добавить место обучения':
         user_interview.update_step(InterviewStep.place_education_2)
-        message_text = 'Укажите информацию обо всех учебных соведениях (СПО, ВО), где Вы обучались, начиная с' \
-                       ' последнего\n\n В данной графе 👇 введите название последнего учебного заведения'
+        message_text = 'В данной графе 👇 введите название учебного заведения.'
         bot.send_message(
             chat_id=user_interview.chat_id,
             text=message_text,
@@ -784,9 +831,16 @@ def step_add_education(user_interview: Interview, bot: Bot, update: Update):
         )
     elif text == 'Продолжить':
         user_interview.update_step(InterviewStep.work_experience)
+        message_text = 'Блок информация о трудовой деятельности'
+        bot.send_message(
+            chat_id=user_interview.chat_id,
+            text=message_text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=ReplyKeyboardRemove()
+        )
         message_text = 'Укажите опыт Вашей трудовой деятельности за последние 5 лет. ' \
                        'В данной графе👇 укажите название организации, являющейся вашим последним ' \
-                       'или текущим местом работы'
+                       'или текущим местом работы.'
         bot.send_message(
             chat_id=user_interview.chat_id,
             text=message_text,
@@ -866,7 +920,7 @@ def step_add_work(user_interview: Interview, bot: Bot, update: Update):
         user_interview.update_step(InterviewStep.work_experience)
         message_text = 'Укажите опыт Вашей трудовой деятельности за последние 5 лет. ' \
                        'В данной графе👇 укажите название организации, являющейся вашим последним ' \
-                       'или текущим местом работы'
+                       'или текущим местом работы.'
         bot.send_message(
             chat_id=user_interview.chat_id,
             text=message_text,
@@ -875,8 +929,8 @@ def step_add_work(user_interview: Interview, bot: Bot, update: Update):
         )
     elif text == 'Продолжить':
         user_interview.update_step(InterviewStep.prof_skills)
-        message_text = 'Перечислите Ваши профессиональные навыки (пример: организация мероприятий, проведение уроков,' \
-                       ' написание текстов и тд) (до 500 знаков)'
+        message_text = 'Перечислите Ваши профессиональные навыки (до 500 знаков).\n\n' \
+                       '<i>Пример: организация мероприятий, проведение уроков, написание текстов и т.д.</i>'
         bot.send_message(
             chat_id=user_interview.chat_id,
             text=message_text,
@@ -897,7 +951,8 @@ def step_prof_skills(user_interview: Interview, bot: Bot, update: Update):
     interview_answers['prof_skills'] = text
     user_interview.interview_answers = interview_answers
     user_interview.update_step(InterviewStep.pers_qualities)
-    message_text = 'Перечислите Ваши личностные качества <i>(пример: коммуникабельность, стрессоустойчивость и тд) (до 500 знаков)</i>'
+    message_text = 'Перечислите Ваши личностные качества (до 500 знаков).\n\n' \
+                   '<i>Пример: коммуникабельность, стрессоустойчивость и т.д.</i>'
     bot.send_message(
         chat_id=user_interview.chat_id,
         text=message_text,
@@ -913,8 +968,8 @@ def step_pers_qualities(user_interview: Interview, bot: Bot, update: Update):
     user_interview.interview_answers = interview_answers
     user_interview.update_step(InterviewStep.achievements)
     message_text = 'Укажите информацию о ваших достижениях (перечень опубликованных статей, реализованных проектов,' \
-                   ' победы в конкурсах, полученных грантов). ' \
-                   'Прикрепите ссылки на описания проектов/публикаций (при наличии) До 1500 знаков'
+                   ' полученных грантов, победы в конкурсах). ' \
+                   'Прикрепите ссылки на описания проектов/публикаций (при наличии). \n Объем сообщения – до 1500 знаков.'
     bot.send_message(
         chat_id=user_interview.chat_id,
         text=message_text,
@@ -930,7 +985,7 @@ def step_achievements(user_interview: Interview, bot: Bot, update: Update):
     user_interview.interview_answers = interview_answers
     user_interview.update_step(InterviewStep.exp_children)
     message_text = 'Опишите опыт работы с детским коллективом (вожатская, волонтерская, преподавательская и иная ' \
-                   'деятельность) До 1500 знаков'
+                   'деятельность). \n Объем сообщения – до 1500 знаков.'
     bot.send_message(
         chat_id=user_interview.chat_id,
         text=message_text,
@@ -1063,8 +1118,8 @@ def step_add_adm_okr(user_interview: Interview, bot: Bot, update: Update):
     elif text == 'Продолжить':
         user_interview.save_interview_answers_to_table()
         user_interview.update_step(InterviewStep.start_test)
-        message_text = 'Спасибо! Ваши данные отправлены на модерацию. ' \
-                       'Теперь Вам доступно прохождение теста. ' \
+        message_text = 'Спасибо! Ваши данные отправлены на модерацию.\n\n ' \
+                       'Теперь Вам доступно прохождение теста.\n ' \
                        'Обратите внимание, на выполнения теста даётся 60 минут'
         keyboard_markup = [[
             KeyboardButton(text='Начать тестирование'),
