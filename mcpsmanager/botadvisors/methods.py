@@ -100,6 +100,40 @@ def interview_step(user_interview: Interview, bot: Bot, update: Update):
         test_step(user_interview, bot, text)
     elif user_interview.step == InterviewStep.start_test.value:
         start_user_test(user_interview, bot, update)
+    elif user_interview.step == InterviewStep.finish_end.value:
+        finish_end(user_interview, bot, update)
+
+
+def finish_end(user_interview: Interview, bot: Bot, update: Update):
+    if update.message.text:
+        text = update.message.text.encode('utf-8').decode()
+        if 'http' in text:
+            user_interview.video_url = text
+            user_interview.update_step(InterviewStep.end)
+            user_interview.save_video_url_to_table()
+            message = '''
+👍Спасибо!
+
+🎦Ваше видео поступило на проверку организаторам конкурса.
+
+Пожалуйста, ожидайте результатов. 
+
+📞Просим обратить внимание, что с Вами может связаться Организатор.
+
+💬Сообщение о результатах и дальнейших действиях придет в этот диалог.'''
+            bot.send_message(
+                chat_id=user_interview.chat_id,
+                text=message,
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+    bot.send_message(
+        chat_id=user_interview.chat_id,
+        text='Обращаем внимание, что ответным сообщением здесь необходимо прислать ссылку на видеоролик, а не сам видеоролик!',
+        parse_mode=ParseMode.HTML,
+    )
+
 
 
 def start_user_test(user_interview: Interview, bot: Bot, update: Update = ''):

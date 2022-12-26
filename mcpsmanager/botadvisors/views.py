@@ -37,15 +37,18 @@ def bot_webhook(request: WSGIRequest):
     return HttpResponse(True)
 
 
-def start_test(request: WSGIRequest):
-    bot = Bot(token=settings.ADVISORS_BOT_TOKE)
-    json_body = json.loads(request.body)
-    update = Update.de_json(json_body, bot)
-    chat_id = '332158440'
-    user_interview, created = Interview.objects.get_or_create({}, chat_id=chat_id)
-    interview_step(user_interview, bot, update)
+def refresh_test_results(_):
+    Interview.refresh_test_results()
     return JsonResponse({
         'status': True,
+    })
+
+
+def send_finish_message(_):
+    rows = Interview.send_finish_message()
+    return JsonResponse({
+        'status': True,
+        'rows': rows
     })
 
 

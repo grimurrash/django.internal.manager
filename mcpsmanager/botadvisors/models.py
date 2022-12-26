@@ -4,6 +4,7 @@ import random
 from django.conf import settings
 from django.db.models import Q
 from enum import Enum
+from telegram import *
 
 
 class Questions(models.Model):
@@ -77,7 +78,8 @@ class Questions(models.Model):
         list_two_count = len(all_questions.filter(block_name='Психолого-педагогические'))
         if list_two_count > 8:
             list_ids = random.sample(range(1, list_two_count), 8)
-            list_two = list(all_questions.filter(Q(block_name='Психолого-педагогические') & Q(questing_id__in=list_ids)))
+            list_two = list(
+                all_questions.filter(Q(block_name='Психолого-педагогические') & Q(questing_id__in=list_ids)))
         else:
             list_two = list(all_questions.filter(block_name='Психолого-педагогические'))
 
@@ -130,6 +132,8 @@ class InterviewStep(Enum):
     start_test = 'start_test'
     test = 'test'
     finish = 'finish'
+    finish_end = 'finish_end'
+    end = 'end'
 
 
 class Interview(models.Model):
@@ -141,6 +145,9 @@ class Interview(models.Model):
     questing_text = models.JSONField('Вопросы', null=True)
     questing_step = models.IntegerField('Актуальный вопрос', default=-1)
     questing_balls = models.IntegerField('Кол-во балов', default=0)
+    is_need_send = models.BooleanField('Нужно ли отправлять сообщение', default=0)
+    is_send_final_message = models.BooleanField('Отправлено последнее сообщение', default=0)
+    video_url = models.CharField('Ссылка на видео', max_length=2000, default=None, null=True)
 
     objects = models.QuerySet.as_manager()
 
@@ -206,4 +213,556 @@ class Interview(models.Model):
         gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
         spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
         sheet = spreadsheet.worksheet('Результаты опроса')
-        sheet.update(f'T{self.google_table_row}', str(self.questing_balls))
+        values = sheet.col_values(8)
+        interview_answers = dict(self.interview_answers)
+        for idx, row in enumerate(values):
+            lineIndex = idx + 1
+            if not interview_answers.get('email'):
+                continue
+            if row == interview_answers['email']:
+                sheet.update(f'T{lineIndex}', str(self.questing_balls))
+                return
+
+    def save_video_url_to_table(self):
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Результаты опроса')
+        values = sheet.col_values(8)
+        interview_answers = dict(self.interview_answers)
+        for idx, row in enumerate(values):
+            lineIndex = idx + 1
+            if not interview_answers.get('email'):
+                continue
+            if row == interview_answers['email']:
+                sheet.update(f'U{lineIndex}', str(self.video_url))
+                return
+
+    @classmethod
+    def send_finish_message(cls):
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Результаты опроса')
+        values = sheet.get_all_values()
+        rows = {}
+        for idx, row in enumerate(values):
+            rows.setdefault(row[7], {
+                'line': idx + 1,
+                'isNeedSend': row[22]
+            })
+        message10 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Юго-Западного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+https://clubovp-mcps.timepad.ru/event/2271464/ep4/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Местро проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 25 декабря включительно.
+
+Спасибо!
+До встречи👍
+        '''
+
+        message11 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Центрального административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2278284/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍
+        '''
+
+        message12 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Юго-Восточного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2278289/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍
+        '''
+
+        message13 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Северо-Восточного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2278302/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message14 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Западного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2278307/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message15 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Северо-Западного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2278314/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message16 = '''Уважаемый кандидат!
+Вы представляете образовательную организацию Восточного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2279679/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message17 = '''Уважаемый кандидат!
+Вы представляете образовательную организацию Северного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2279687/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message18 = '''Уважаемый кандидат!
+Вы представляете образовательную организацию Южного административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь, выбрав дату и время собеседования по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2279694/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация» и выберите дату и время.
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступные даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message19 = '''Уважаемый кандидат!
+Вы представляете образовательную организацию Зеленоградского административного округа.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2279735/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация».
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступная даты и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        message20 = '''
+Уважаемый кандидат!
+Вы представляете образовательную организацию Троицкого/Новомосковского  административных округов.
+
+Приглашаем Вас принять участие в 3 этапе московского городского конкурса «Навигаторы детства», который пройдет в формате группового и индивидуального собеседования.
+
+Пожалуйста, зарегистрируйтесь по ссылке:
+
+https://clubovp-mcps.timepad.ru/event/2279739/
+
+Перейдя по ссылке, сразу пролистайте страницу до блока «Регистрация».
+
+🏫Место проведения: Корпоративный университет
+📍Адрес: г. Москва, Авиационный переулок, дом 6
+
+🗓️ Доступная дата и время указаны по ссылке регистрации.
+
+⏳Продолжительность: 2 часа
+
+Просим Вас пройти регистрацию до 30 декабря включительно.
+
+Спасибо!
+До встречи👍'''
+
+        bot = Bot(token=settings.ADVISORS_BOT_TOKE)
+        interviews = Interview.objects.filter(is_send_final_message=0)
+        for interview in interviews:
+            interview_answers = dict(interview.interview_answers)
+            if not interview_answers.get('email'):
+                continue
+            rowItem = rows.get(interview_answers['email'])
+            if not rowItem:
+                continue
+            if rowItem['isNeedSend'] == '10':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message10,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}', chat_id=453548866)
+            elif rowItem['isNeedSend'] == '11':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message11,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '12':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message12,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '13':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message13,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '14':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message14,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '15':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message15,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '16':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message16,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '17':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message17,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '18':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message18,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '19':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message19,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '19':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message19,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+            elif rowItem['isNeedSend'] == '20':
+                try:
+                    bot.send_message(
+                        chat_id=interview.chat_id,
+                        text=message20,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=ReplyKeyboardRemove()
+                    )
+                    interview.is_send_final_message = 1
+                    interview.save()
+                except Exception as error:
+                    bot.send_message(
+                        text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}',
+                        chat_id=453548866)
+
+        return rows
+
+    @classmethod
+    def refresh_test_results(cls):
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Результаты опроса')
+        values = sheet.get_all_values()
+        rows = {}
+        lines = {}
+        for idx, row in enumerate(values):
+            lines.setdefault(idx + 1, [row[19]])
+            rows.setdefault(row[7], idx + 1)
+        interviews = Interview.objects.all()
+        for interview in interviews:
+            interview_answers = dict(interview.interview_answers)
+            if not interview_answers.get('email'):
+                continue
+            lineIndex = rows.get(interview_answers['email'])
+            if not lineIndex:
+                continue
+            lines[lineIndex] = [str(interview.questing_balls)]
+        updateLine = []
+        for value in lines.values():
+            updateLine.append(value)
+        sheet.update(f'T1', updateLine)
+
+    @classmethod
+    def refresh_table(cls):
+        lines = []
+        interviews = Interview.objects.all()
+        for interview in interviews:
+            try:
+                interview_answers = dict(interview.interview_answers)
+                if interview.step != InterviewStep.test.value and interview.step != InterviewStep.start_test.value \
+                        and interview.step != InterviewStep.finish.value and not interview_answers['education_list'] \
+                        and not interview_answers['adm_okr_list']:
+                    continue
+
+                education_list = []
+                for value in dict(interview_answers['education_list']).values():
+                    education_list.append(f'{value["place_education"]}, {value["napr_education"]}, '
+                                          f'{value["place_education_stop"]}, '
+                                          f'https://manager.cpvs.moscow/{value["doc_education"]};')
+
+                work_list = []
+                for value in dict(interview_answers['work_list']).values():
+                    work_list.append(f'{value["work_experience"]}, {value["job_title"]};')
+                print('1')
+                lines.append([
+                    interview.chat_id,
+                    interview.step,
+                    interview_answers['surname'],
+                    interview_answers['name'],
+                    interview_answers['patronymic'],
+                    interview_answers['date_of_birth'],
+                    interview_answers['gender'],
+                    'https://manager.cpvs.moscow/' + interview_answers['photo'],
+                    interview_answers['phone_number'],
+                    interview_answers['email'],
+                    interview_answers['social_networks'],
+                    interview_answers['education_level'],
+                    interview_answers['place_education'],
+                    '\n'.join(education_list),
+                    '\n'.join(work_list),
+                    interview_answers['prof_skills'],
+                    interview_answers['pers_qualities'],
+                    interview_answers['achievements'],
+                    interview_answers['exp_children'],
+                    interview_answers['ed_oo_work'],
+                    ', '.join(list(interview_answers['adm_okr_list'])),
+                    str(interview.questing_balls)
+                ])
+            except Exception:
+                pass
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Результаты опроса (2)')
+        sheet.update(f'A1', lines)

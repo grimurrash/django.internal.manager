@@ -13,8 +13,12 @@ def get_models(_):
     ship_models = ShipModel.objects.exclude(main_photo__isnull=True) \
         .filter(status=ShipModel.ShopModelStatus.Received) \
         .to_list()
+    ship_models_count = ShipModel.objects.count()
 
-    return JsonResponse(ship_models, safe=False)
+    return JsonResponse({
+        'models': ship_models,
+        'total_count': ship_models_count
+    }, safe=False)
 
 
 def get_model_types(_):
@@ -41,6 +45,8 @@ def add_model(request: WSGIRequest):
         file_dir = uuid.uuid1()
 
         photos = []
+        password_path = None
+        drawing_path = None
         for key, file in files.items():
             if key == 'passport_file':
                 password_path = f'uploads/ship-modeling/{file_dir}/passport{Path(file.name).suffix}'

@@ -2,6 +2,7 @@ import json
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
 class QuerySet(models.QuerySet):
     def to_list(self):
         return_list = []
@@ -56,8 +57,8 @@ class ShipModel(models.Model):
 
     description = models.TextField('Описание', default='', blank=True)
 
-    model_passport = models.CharField('Паспорт модели', max_length=255)
-    model_drawing = models.CharField('Чертёж модели', max_length=255)
+    model_passport = models.CharField('Паспорт модели', max_length=255, null=True, default=None)
+    model_drawing = models.CharField('Чертёж модели', max_length=255, null=True, default=None)
 
     main_photo = models.CharField('Основное фото', null=True, blank=False, max_length=255)
     model_photos = models.JSONField('Фотографии модели', default=None, null=True, blank=True)
