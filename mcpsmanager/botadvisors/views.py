@@ -51,6 +51,12 @@ def send_finish_message(_):
         'rows': rows
     })
 
+def send_result_message(_):
+    rows = Interview.send_result_message()
+    return JsonResponse({
+        'status': True,
+        'rows': rows
+    })
 
 def refresh_questions(_):
     Questions.refresh()

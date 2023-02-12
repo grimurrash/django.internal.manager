@@ -6,7 +6,7 @@ from django.conf import settings
 from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-from telegram import Bot, Update, TelegramError, ParseMode, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import *
 from botcollection.models import SurveyBotMessage
 
 
@@ -19,20 +19,30 @@ def save_survey_bot_info(survey_bot: SurveyBotMessage):
     spreadsheet = gc.open_by_key('1uEeJGp8ApsMGYaKSemRGbPHg0ntlQwhEf3i3DyAizQo')
     sheet = spreadsheet.worksheet('Участники')
     next_row = next_available_row(sheet)
-    sheet.update(f'A{next_row}', [
-        [survey_bot.surname, survey_bot.first_name, survey_bot.last_name, survey_bot.school, survey_bot.email,
-         survey_bot.arrival_method]])
+    sheet.update(f'A{next_row}', [[
+        survey_bot.surname,
+        survey_bot.first_name,
+        survey_bot.last_name,
+        survey_bot.school,
+        survey_bot.phone,
+        survey_bot.arrival_method,
+        survey_bot.car_brand,
+        survey_bot.car_number
+    ]])
 
 
 @csrf_exempt
 def survey_bot_webhook(request: WSGIRequest):
-    bot = Bot(token='5027156115:AAFZSXQkR2Q3jI-IUi5o-PTYw45ER7vpeLI')
+    bot = Bot(token='5728967021:AAG9XQyw4kcZqjvmC_egrXpI59WS13Vt7A4')
     try:
         json_body = json.loads(request.body)
         update = Update.de_json(json_body, bot)
 
         if update.message:
-            text = update.message.text.encode('utf-8').decode()
+            if update.message.contact:
+                text = update.message.contact.phone_number
+            else:
+                text = update.message.text.encode('utf-8').decode()
             chat_id = update.message.chat.id
 
             if text == '/start':
@@ -60,22 +70,45 @@ def survey_bot_webhook(request: WSGIRequest):
                     survey_bot.last_name = text
                     survey_bot.status = SurveyBotMessage.SurveyStatus.SCHOOL
                     survey_bot.save()
-                    bot.send_message(chat_id=chat_id, text='Введите наименование школы:')
+                    bot.send_message(chat_id=chat_id, text='Введите наименование образовательной организации:')
                 elif survey_bot.status == SurveyBotMessage.SurveyStatus.SCHOOL:
                     survey_bot.school = text
-                    survey_bot.status = SurveyBotMessage.SurveyStatus.EMAIL
+                    survey_bot.status = SurveyBotMessage.SurveyStatus.PHONE
                     survey_bot.save()
-                    bot.send_message(chat_id=chat_id, text='Введите электронную почту:')
-                elif survey_bot.status == SurveyBotMessage.SurveyStatus.EMAIL:
-                    survey_bot.email = text
+                    bot.send_message(chat_id=chat_id, text='Введите номер телефона:', reply_markup=ReplyKeyboardMarkup(
+                        one_time_keyboard=True,
+                        resize_keyboard=True,
+                        keyboard=[[
+                            KeyboardButton(text='Отправить телефон', request_contact=True),
+                        ]]
+                    ))
+                elif survey_bot.status == SurveyBotMessage.SurveyStatus.CAR_BRAND:
+                    survey_bot.car_brand = text
+                    survey_bot.status = SurveyBotMessage.SurveyStatus.CAR_NUMBER
+                    survey_bot.save()
+                    bot.send_message(chat_id=chat_id, text='Введите номер автомобиля:')
+                elif survey_bot.status == SurveyBotMessage.SurveyStatus.CAR_NUMBER:
+                    survey_bot.car_number = text
+                    survey_bot.status = SurveyBotMessage.SurveyStatus.END
+                    with open('uploads/survey_bot/car.jpg', 'rb') as photo:
+                        bot.send_photo(chat_id=chat_id, photo=photo, caption='''
+Уважаемые участники выезда! 
+30 января 2023 года в 9:00 мы ждем вас в парк-отеле «Воздвиженское» по адресу: Московская область, Серпуховский район, поселок Д/О Авангард..''',
+                                       reply_markup=ReplyKeyboardRemove(),
+                                       parse_mode="HTML")
+                    survey_bot.save()
+                    save_survey_bot_info(survey_bot)
+                elif survey_bot.status == SurveyBotMessage.SurveyStatus.PHONE:
+                    survey_bot.phone = text
                     survey_bot.status = SurveyBotMessage.SurveyStatus.ARRIVAL_METHOD
                     survey_bot.save()
+                    bot.send_message(chat_id=chat_id, text='Как планируете добираться?', reply_markup=ReplyKeyboardRemove())
                     inline_keyboard_markup = InlineKeyboardMarkup(
                         [[InlineKeyboardButton(text='Трансфер', callback_data='arrival_method_bus')],
                          [InlineKeyboardButton(text='Самостоятельно', callback_data='arrival_method_car')]]
                     )
                     bot.send_message(chat_id=chat_id,
-                                     text='Как планируете добираться?',
+                                     text='Выберите из указанных вариантов:',
                                      parse_mode=ParseMode.HTML,
                                      reply_markup=inline_keyboard_markup)
         elif update.callback_query:
@@ -86,28 +119,21 @@ def survey_bot_webhook(request: WSGIRequest):
                 if action == 'arrival_method_bus':
                     survey_bot.arrival_method = SurveyBotMessage.ArrivalMethod.BUS
                     survey_bot.status = SurveyBotMessage.SurveyStatus.END
+
+                    with open('uploads/survey_bot/bus.jpg', 'rb') as photo:
+                        bot.send_photo(chat_id=chat_id, photo=photo, caption='''
+Трансфер до отеля будет организован от м. Аннино.
+<b>Сбор</b> в 07:00 30 января 2023 года
+<b>Отъезд</b> в 7:30 30 января 2023 года
+Точка сбора: Выход из метро номер 2, далее пешком 300 метров в сторону центра, напротив дома Варшавское шоссе 154 к2
+Контактное лицо: +79629983495 (Алексеева Наталья Викторовна)''', reply_markup=ReplyKeyboardRemove(), parse_mode="HTML")
                     survey_bot.save()
-                    bot.send_message(chat_id=chat_id,
-                                     text='Спасибо!'
-                                          '\n\nТрансфер до отеля будет организован от м. Аннино.'
-                                          '\n<b>Сбор</b> в 7:15 15 февраля'
-                                          '\n<b>Отъезд</b> 7:30 15 февраля'
-                                          '\nТочка сбора: Точка сбора: Выход из метро номер 2.'
-                                          '\nКонтактное лицо: +79263484222 (Уналбаева Светлана Валерьевна)',
-                                     parse_mode=ParseMode.HTML),
-                    bot.send_location(chat_id=chat_id, latitude=55.584325, longitude=37.596929)
                     save_survey_bot_info(survey_bot)
                 elif action == 'arrival_method_car':
                     survey_bot.arrival_method = SurveyBotMessage.ArrivalMethod.CAR
-                    survey_bot.status = SurveyBotMessage.SurveyStatus.END
+                    survey_bot.status = SurveyBotMessage.SurveyStatus.CAR_BRAND
                     survey_bot.save()
-                    bot.send_message(chat_id=chat_id,
-                                     text='Уважаемые участники выезда!'
-                                          '\n15 февраля 2022 года в 9:00 мы ждем вас в парк-отеле «Воздвиженское» по '
-                                          'адресу: Московская область, Серпуховский район, поселок Д/О Авангард.',
-                                     parse_mode=ParseMode.HTML)
-                    bot.send_location(chat_id=chat_id, latitude=54.961159, longitude=37.460555)
-                    save_survey_bot_info(survey_bot)
+                    bot.send_message(chat_id=chat_id, text='Введите марку автомобиля:', reply_markup=ReplyKeyboardRemove())
     except SurveyBotMessage.DoesNotExist:
         json_body = json.loads(request.body)
         update = Update.de_json(json_body, bot)

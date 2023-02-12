@@ -103,12 +103,12 @@ class Event(models.Model):
             spreadsheet = gc.open_by_key(str(self.google_spreadsheet_id))
             worksheets = list(spreadsheet.worksheets())
             is_exist_sheet = False
-            print(worksheets)
+
             for worksheet in worksheets:
                 if worksheet.title == table_name:
                     is_exist_sheet = True
                     break
-            print(is_exist_sheet)
+
             if is_exist_sheet:
                 sheet = spreadsheet.worksheet(table_name)
                 values = list(sheet.get_all_values())
@@ -117,8 +117,7 @@ class Event(models.Model):
                 values = []
 
             next_row = next_available_row(sheet)
-            print(next_row)
-            print(data)
+
             sheet.add_rows(1)
             if len(values) > 0 and len(data) > len(values[-1]):
                 sheet.add_cols(len(data) - len(values[-1]))

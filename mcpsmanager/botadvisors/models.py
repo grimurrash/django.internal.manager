@@ -690,6 +690,47 @@ https://clubovp-mcps.timepad.ru/event/2279739/
         return rows
 
     @classmethod
+    def send_result_message(cls):
+        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Результаты опроса')
+        values = sheet.get_all_values()
+        rows = {}
+        for idx, row in enumerate(values):
+            if row[24] != "31" and row[24] != '':
+                rows.setdefault(row[7], {
+                    'line': idx + 1,
+                    'isNeedSend': row[24]
+                })
+        bot = Bot(token=settings.ADVISORS_BOT_TOKE)
+        interviews = Interview.objects.filter(is_send_final_message=0)
+        for interview in interviews:
+            interview_answers = dict(interview.interview_answers)
+            if not interview_answers.get('email'):
+                continue
+            rowItem = rows.get(interview_answers['email'])
+            if not rowItem:
+                continue
+            if rowItem['isNeedSend'] != '31':
+                try:
+                    with open(f'uploads/advosort_text/{rowItem["isNeedSend"]}_text.html', 'r') as file:
+                        text = str(file.read())
+
+                        text = text.replace("\\n", '')
+                        bot.send_message(
+                            chat_id=interview.chat_id,
+                            text=text,
+                            parse_mode=ParseMode.HTML,
+                            reply_markup=ReplyKeyboardRemove()
+                        )
+                        interview.is_send_final_message = 1
+                        interview.save()
+                except Exception as error:
+                    bot.send_message(text=f'Ошибка при отправле уведомления о последнем этапе № {str(interview.chat_id)} ({str(interview_answers["email"])}) {str(error)}', chat_id=453548866)
+
+        return rows
+
+    @classmethod
     def refresh_test_results(cls):
         gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
         spreadsheet = gc.open_by_key(settings.ADVISORS_RESULT_SPREADSHEET_ID)

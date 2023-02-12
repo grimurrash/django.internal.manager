@@ -9,8 +9,10 @@ class SurveyBotMessage(models.Model):
         SURNAME = 'SURNAME',
         LASTNAME = 'LASTNAME',
         SCHOOL = 'SCHOOL',
-        EMAIL = 'EMAIL',
+        PHONE = 'PHONE',
         ARRIVAL_METHOD = 'ARRIVAL_METHOD',
+        CAR_BRAND = 'CAR_BRAND',
+        CAR_NUMBER = 'CAR_NUMBER'
         END = 'END'
 
     status = models.CharField('Статус', max_length=20,
@@ -20,8 +22,8 @@ class SurveyBotMessage(models.Model):
     first_name = models.CharField('Имя', max_length=100, default='')
     surname = models.CharField('Фамилия', max_length=100, default='')
     last_name = models.CharField('Отчество', max_length=100, default='')
-    school = models.CharField('Школа', max_length=255, default='')
-    email = models.CharField('Почта', max_length=255, default='')
+    school = models.CharField('Образовательная организация', max_length=255, default='')
+    phone = models.CharField('Телефон', max_length=100, default='')
 
     class ArrivalMethod(models.TextChoices):
         BUS = 'BUS',
@@ -31,6 +33,8 @@ class SurveyBotMessage(models.Model):
                                       max_length=3,
                                       choices=ArrivalMethod.choices,
                                       default=ArrivalMethod.BUS)
+    car_brand = models.CharField('Марка машины', max_length=255, default='')
+    car_number = models.CharField('Номер машины', max_length=50, default='')
 
     objects = models.QuerySet.as_manager()
 

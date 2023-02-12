@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'surveysmanager',
     'modeling',
     'botadvisors',
+    'videorating',
 ]
 
 MIDDLEWARE = [
