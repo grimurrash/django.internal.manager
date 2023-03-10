@@ -93,7 +93,8 @@ def survey_bot_webhook(request: WSGIRequest):
                     with open('uploads/survey_bot/car.jpg', 'rb') as photo:
                         bot.send_photo(chat_id=chat_id, photo=photo, caption='''
 Уважаемые участники выезда! 
-30 января 2023 года в 9:00 мы ждем вас в парк-отеле «Воздвиженское» по адресу: Московская область, Серпуховский район, поселок Д/О Авангард..''',
+27 февраля 2023 года в 8:30 мы ждем вас в парк-отеле «Воздвиженское» по адресу: Московская область, Серпуховский район, поселок Д/О Авангард.
+''',
                                        reply_markup=ReplyKeyboardRemove(),
                                        parse_mode="HTML")
                     survey_bot.save()
@@ -123,10 +124,11 @@ def survey_bot_webhook(request: WSGIRequest):
                     with open('uploads/survey_bot/bus.jpg', 'rb') as photo:
                         bot.send_photo(chat_id=chat_id, photo=photo, caption='''
 Трансфер до отеля будет организован от м. Аннино.
-<b>Сбор</b> в 07:00 30 января 2023 года
-<b>Отъезд</b> в 7:30 30 января 2023 года
+<b>Сбор</b> в 06:50 27 февраля 2023 года
+<b>Отъезд</b> в 7:15 27 февраля 2023 года
 Точка сбора: Выход из метро номер 2, далее пешком 300 метров в сторону центра, напротив дома Варшавское шоссе 154 к2
-Контактное лицо: +79629983495 (Алексеева Наталья Викторовна)''', reply_markup=ReplyKeyboardRemove(), parse_mode="HTML")
+Контактное лицо: +79263484222 (Уналбаева Светлана Валерьевна)
+''', reply_markup=ReplyKeyboardRemove(), parse_mode="HTML")
                     survey_bot.save()
                     save_survey_bot_info(survey_bot)
                 elif action == 'arrival_method_car':

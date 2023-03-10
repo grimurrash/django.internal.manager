@@ -20,7 +20,13 @@ class Participant(models.Model):
     def __str__(self):
         return self.school
 
-    def to_dict(self, evaluation: float, there_rating):
+    def to_dict(self, participant_evaluations, there_rating):
+        points = participant_evaluations.aggregate(models.Avg('points')).get('points__avg')
+        comments = []
+        for participant_evaluation in participant_evaluations:
+            if participant_evaluation.comment is not None:
+                comments.append(f"{participant_evaluation.appraiser}: {participant_evaluation.comment}")
+
         return {
             'id': self.id,
             'type': self.type,
@@ -29,8 +35,9 @@ class Participant(models.Model):
             'video_url': self.video_url,
             'leader_fio': self.leader_fio,
             'reference_url': self.reference_url,
-            'evaluation': evaluation,
+            'evaluation': points,
             'there_rating': there_rating,
+            'comments': comments
         }
 
 
@@ -43,6 +50,7 @@ class Evaluation(models.Model):
     appraiser = models.CharField('Оценщик', max_length=255)
     points = models.FloatField('Баллов')
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE, verbose_name='Участник')
+    comment = models.TextField('Комментарий',null=True, blank=True, default=None)
 
     def __str__(self):
         return f'{self.appraiser} - {self.points}'

@@ -42,8 +42,7 @@ def get_list(request: WSGIRequest):
     for participant in participants:
         participant_evaluations = evaluations.filter(participant=participant)
         there_rating = participant_evaluations.filter(appraiser=user).first()
-        points = participant_evaluations.aggregate(models.Avg('points')).get('points__avg')
-        participant_list.append(participant.to_dict(points, there_rating.points if there_rating is not None else None))
+        participant_list.append(participant.to_dict(participant_evaluations, there_rating.points if there_rating is not None else None))
 
     return JsonResponse({'items': participant_list})
 
@@ -53,11 +52,13 @@ def add_evaluation(request: WSGIRequest):
     post_data = request.POST.dict()
     participant = post_data.get('participant')
     points = post_data.get('points')
+    comment = post_data.get('comment')
     user = post_data.get('user')
 
     evaluation = Evaluation(
         points=points,
         appraiser=user,
+        comment=comment if comment is not None else None,
         participant_id=participant
     )
     evaluation.save()
