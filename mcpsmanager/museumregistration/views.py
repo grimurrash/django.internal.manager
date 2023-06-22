@@ -7,49 +7,30 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from museumregistration.models import RegistrationMember
-from museumregistration.utils import GoogleDrive
-
+from museumregistration.utils import FTPDrive
+from transliterate import translit
+import requests
+import json
 
 def museum_registation_limit(_):
-    registation_limit = RegistrationMember.registation_limit()
+    registation_limit = RegistrationMember.registration_limit()
     family_statuses = dict(RegistrationMember.FamilyStatus.choices)
     age_groups = dict(RegistrationMember.AgeGroup.choices)
     directions = dict(RegistrationMember.Direction.choices)
     shift_dates = dict(RegistrationMember.Shift.choices)
     shifts = dict()
-    shift_open_date = 5
-    if datetime.now() > datetime(2022, 6, 13):
-        shift_open_date = 9
-    if datetime.now() > datetime(2022, 7, 11):
-        shift_open_date = 13
+    shift_open_date = RegistrationMember.Shift.get_open_shift()
 
-    disabled_date = 0
-    if datetime.now() > datetime(2022, 6, 27):
-        disabled_date = 4
-    if datetime.now() > datetime(2022, 7, 4):
-        disabled_date = 5
-    if datetime.now() > datetime(2022, 7, 11):
-        disabled_date = 6
-    if datetime.now() > datetime(2022, 7, 18):
-        disabled_date = 7
-    if datetime.now() > datetime(2022, 7, 25):
-        disabled_date = 8
-    if datetime.now() > datetime(2022, 8, 1):
-        disabled_date = 9
-    if datetime.now() > datetime(2022, 8, 8):
-        disabled_date = 10
-    if datetime.now() > datetime(2022, 8, 15):
-        disabled_date = 11
-    if datetime.now() > datetime(2022, 8, 22):
-        disabled_date = 12
+    disabled_date = RegistrationMember.Shift.get_disabled_shift()
 
+    print(shift_open_date, disabled_date)
     for shift_key in shift_dates.keys():
         if shift_key >= shift_open_date:
             shifts.setdefault(shift_key, {
                 'name': shift_dates[shift_key],
                 'visible': False
             })
-        elif shift_key <= disabled_date:
+        elif shift_key < disabled_date:
             continue
         else:
             shifts.setdefault(shift_key, {
@@ -58,7 +39,7 @@ def museum_registation_limit(_):
             })
 
     min_date = '2009-01-01'
-    max_date = '2014-12-31'
+    max_date = '2015-12-31'
 
     # Временно убрали семейный статус "без статуса"
     # family_statuses.pop(0)
@@ -75,80 +56,71 @@ def museum_registation_limit(_):
 
 
 @csrf_exempt
-def save_museum_registation_member(request: WSGIRequest):
+def save_museum_registration_member(request: WSGIRequest):
     try:
+        # print(sys.getdefaultencoding())
+        # return JsonResponse({});
         data = request.POST.dict()
         files = request.FILES.dict()
 
-        surname = str(data['surname']).strip()
-        first_name = str(data['firstname']).strip()
+        firstname = str(data['surname']).strip()
+        surname = str(data['firstname']).strip()
         last_name = str(data['lastname']).strip()
         date_of_birth = datetime.fromtimestamp(int(data['dateOfBirth']))
 
         member_registration_count = RegistrationMember.objects.filter(
-            surname=surname,
-            first_name=first_name,
+            surname=firstname,
+            first_name=surname,
             last_name=last_name,
             date_of_birth=date_of_birth.strftime('%Y-%m-%d')
         ).count()
         if member_registration_count >= 2:
             return JsonResponse(
-                {'status': False, 'message': 'Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
+                {'status': False,
+                 'message': 'Вы зарегистрировались на 2 смены. Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
 
-        registation_limit = RegistrationMember.registation_limit()
-        if int(registation_limit[int(data['selectedShift'])][int(data['selectedDirection'])]
+        registration_limit = RegistrationMember.registration_limit()
+        if int(registration_limit[int(data['selectedShift'])][int(data['selectedDirection'])]
                [int(data['selectedAgeGroup'])]) <= 0:
             return JsonResponse({'status': False, 'message': 'В данной смене не осталось мест.'})
 
-        google_drive = GoogleDrive(settings.GOOGLE_CREDENTIALS_FILE_PATH)
-        member_folder_name = f'{surname} {first_name} {last_name} | ' + date_of_birth.strftime('%d.%m.%Y')
-        # member_folder_id = google_drive.create_folder(name=member_folder_name,
-        #                                               folder_id=settings.GOOGLE_MUSEUMREGISTRATION_DOCUMENTS_FOLDER_ID)
         shift = dict(RegistrationMember.Shift.choices)[int(data['selectedShift'])]
         age_group = dict(RegistrationMember.AgeGroup.choices)[int(data['selectedAgeGroup'])]
         direction = dict(RegistrationMember.Direction.choices)[int(data['selectedDirection'])]
-        member_folder_id = f"/{shift}/{direction}/{age_group}/{member_folder_name}"
+
+        member_folder_name = f'{surname} {firstname} {last_name} ' + date_of_birth.strftime('%d.%m.%Y')
+        member_folder_path = translit(f"{shift}/{direction}/{age_group}/{member_folder_name}", language_code='ru', reversed=True)
+
+        ftp_drive = FTPDrive(member_folder_path)
 
         if files.get('familyStatusFile'):
-            google_drive.create_file(file=files.get('familyStatusFile'), file_name="Подтверждение статуса семьи",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('familyStatusFile'), file_name="Family Status Confirmation")
         if files.get('passportFile'):
-            google_drive.create_file(file=files.get('passportFile'), file_name="Паспорт", folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('passportFile'), file_name="Passport")
         if files.get('birthCertificateFile'):
-            google_drive.create_file(file=files.get('birthCertificateFile'), file_name="Свидетельство о рождении",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('birthCertificateFile'), file_name="Birth certificate")
         if files.get('medicalPolicyFile'):
-            google_drive.create_file(file=files.get('medicalPolicyFile'), file_name="Медицинский полис",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('medicalPolicyFile'), file_name="Medical policy")
         if files.get('consentToTheStorageOfPersonalDataFile'):
-            google_drive.create_file(file=files.get('consentToTheStorageOfPersonalDataFile'),
-                                     file_name="Согласие на обработку персональных данных",
-                                     folder_id=member_folder_id)
-        if files.get('contractFile'):
-            google_drive.create_file(file=files.get('contractFile'), file_name="Договор",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('consentToTheStorageOfPersonalDataFile'),
+                                  file_name="Consent to the processing of personal data")
+        # if files.get('contractFile'):
+        #     ftp_drive.create_file(file=files.get('contractFile'), file_name="Договор")
         if files.get('applicationOneFile'):
-            google_drive.create_file(file=files.get('applicationOneFile'), file_name="Приложение 1",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('applicationOneFile'), file_name="Application 1")
         if files.get('applicationTwoFile'):
-            google_drive.create_file(file=files.get('applicationTwoFile'), file_name="Приложение 2",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('applicationTwoFile'), file_name="Application 2")
         if files.get('applicationThreeFile'):
-            google_drive.create_file(file=files.get('applicationThreeFile'), file_name="Приложение 3",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('applicationThreeFile'), file_name="Application 3")
         if files.get('applicationFourFile'):
-            google_drive.create_file(file=files.get('applicationFourFile'), file_name="Приложение 4",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('applicationFourFile'), file_name="Application 4")
         if files.get('applicationFiveFile'):
-            google_drive.create_file(file=files.get('applicationFiveFile'), file_name="Приложение 5",
-                                     folder_id=member_folder_id)
+            ftp_drive.create_file(file=files.get('applicationFiveFile'), file_name="Application 5")
         if files.get('applicationSixFile'):
-            google_drive.create_file(file=files.get('applicationSixFile'), file_name="Приложение 6",
-                                     folder_id=member_folder_id)
-
+            ftp_drive.create_file(file=files.get('applicationSixFile'), file_name="Application 6")
         registration_member = RegistrationMember(
-            surname=surname,
-            first_name=first_name,
+            surname=firstname,
+            first_name=surname,
             last_name=last_name,
             date_of_birth=date_of_birth,
             phone_number=data['phoneNumber'],
@@ -161,7 +133,7 @@ def save_museum_registation_member(request: WSGIRequest):
             direction=int(data['selectedDirection']),
             age_group=int(data['selectedAgeGroup']),
             shift=int(data['selectedShift']),
-            documents_link=f'local: {member_folder_id}'
+            documents_link=f'fpt: {member_folder_path}'
             # documents_link=f'https://drive.google.com/drive/folders/{member_folder_id}?usp=sharing',
         )
         registration_member.save()
@@ -179,6 +151,7 @@ def save_museum_registation_member(request: WSGIRequest):
 
 def refresh_google_table(_):
     all_member = RegistrationMember.objects.filter(shift__gte=5).all()
+
     def next_available_row(worksheet):
         str_list = list(filter(None, worksheet.col_values(1)))
         return str(len(str_list) + 1)
@@ -217,3 +190,5 @@ def refresh_google_table(_):
     # google_values = sheet.get_all_values()
     # print(google_values)
     # pass
+
+

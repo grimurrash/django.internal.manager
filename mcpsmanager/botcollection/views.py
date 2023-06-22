@@ -39,11 +39,15 @@ def survey_bot_webhook(request: WSGIRequest):
         update = Update.de_json(json_body, bot)
 
         if update.message:
+            chat_id = update.message.chat.id
+
+            if chat_id == -1001579668676:
+                return HttpResponse()
+
             if update.message.contact:
                 text = update.message.contact.phone_number
             else:
                 text = update.message.text.encode('utf-8').decode()
-            chat_id = update.message.chat.id
 
             if text == '/start':
                 obj, created = SurveyBotMessage.objects.update_or_create(defaults={
@@ -93,7 +97,7 @@ def survey_bot_webhook(request: WSGIRequest):
                     with open('uploads/survey_bot/car.jpg', 'rb') as photo:
                         bot.send_photo(chat_id=chat_id, photo=photo, caption='''
 Уважаемые участники выезда! 
-27 февраля 2023 года в 8:30 мы ждем вас в парк-отеле «Воздвиженское» по адресу: Московская область, Серпуховский район, поселок Д/О Авангард.
+24 апреля 2023 года в 8:30 мы ждем вас в парк-отеле «Воздвиженское» по адресу: Московская область, Серпуховский район, поселок Д/О Авангард.
 ''',
                                        reply_markup=ReplyKeyboardRemove(),
                                        parse_mode="HTML")
@@ -124,10 +128,10 @@ def survey_bot_webhook(request: WSGIRequest):
                     with open('uploads/survey_bot/bus.jpg', 'rb') as photo:
                         bot.send_photo(chat_id=chat_id, photo=photo, caption='''
 Трансфер до отеля будет организован от м. Аннино.
-<b>Сбор</b> в 06:50 27 февраля 2023 года
-<b>Отъезд</b> в 7:15 27 февраля 2023 года
-Точка сбора: Выход из метро номер 2, далее пешком 300 метров в сторону центра, напротив дома Варшавское шоссе 154 к2
-Контактное лицо: +79263484222 (Уналбаева Светлана Валерьевна)
+Сбор в 06:50 24 апреля 2023 года
+Отъезд в 7:15 24 апреля 2023 года
+Точка сбора: Выход из метро номер 1, далее пешком 300 метров в сторону области (ориентир: Варшавское шоссе 170 Ас8)
+Контактное лицо: Уналбаева Светлана Валерьевна (8-926-348-42-22)
 ''', reply_markup=ReplyKeyboardRemove(), parse_mode="HTML")
                     survey_bot.save()
                     save_survey_bot_info(survey_bot)
@@ -136,7 +140,7 @@ def survey_bot_webhook(request: WSGIRequest):
                     survey_bot.status = SurveyBotMessage.SurveyStatus.CAR_BRAND
                     survey_bot.save()
                     bot.send_message(chat_id=chat_id, text='Введите марку автомобиля:', reply_markup=ReplyKeyboardRemove())
-    except SurveyBotMessage.DoesNotExist:
+    except SurveyBotMessage.DoesNotExist as exception:
         json_body = json.loads(request.body)
         update = Update.de_json(json_body, bot)
         chat_id = 0
@@ -155,6 +159,7 @@ def survey_bot_webhook(request: WSGIRequest):
         else:
             bot.send_message(text=f'Ошибка пользователя нет!!!\n {json_body}', chat_id=332158440)
     except (ValueError, TelegramError, JSONDecodeError, Exception) as error:
+        raise error
         bot.send_message(text=f'{error} {json_body}', chat_id=332158440)
 
     return HttpResponse()

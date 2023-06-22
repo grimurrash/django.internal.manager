@@ -128,6 +128,12 @@ def finish_end(user_interview: Interview, bot: Bot, update: Update):
             )
             return
 
+        bot.send_message(
+            chat_id=user_interview.chat_id,
+            text='Неверный формат. Прочтите инструкцию выше.',
+            parse_mode=ParseMode.HTML,
+        )
+
     bot.send_message(
         chat_id=user_interview.chat_id,
         text='Обращаем внимание, что ответным сообщением здесь необходимо прислать ссылку на видеоролик, а не сам видеоролик!',

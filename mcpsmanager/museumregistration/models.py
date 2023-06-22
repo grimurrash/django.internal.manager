@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from museumregistration.utils import MicrosoftGraph
 
+from datetime import datetime
+import pytz
 
 class RegistrationMember(models.Model):
     surname = models.CharField('Имя', max_length=100)
@@ -23,7 +25,7 @@ class RegistrationMember(models.Model):
         LARGE_FAMILY = 1, _('Многодетная')
         POORLY_SECURED = 2, _('Малообеспеченная')
         NO_GUARDIANSHIP = 3, _('Без попечения')
-        INVALID = 4, _('Инвалид 3 гр.')
+        INVALID = 4, _('Дети военных  по мобилизаци')
 
     class AgeGroup(models.IntegerChoices):
         FROM_EIGHT_TO_TEN = 0, _('От 8 до 10 лет')
@@ -37,23 +39,73 @@ class RegistrationMember(models.Model):
         MURZILKI = 4, _('Мурзилки')
         ENVIRONMENT = 5, _('Экологическое')
         CHILDREBN_SELF_GOVERNMENT = 6, _('Детское самоуправление')
-        WE_ARE_THE_WORLD = 7, _('Мы- это мир')
+        WE_ARE_THE_WORLD = 7, _('Мы - это мир')
         CREATIVE = 8, _('Творческое')
 
     class Shift(models.IntegerChoices):
-        ONE = 0, _('30 мая - 3 июня')
-        TWO = 1, _('6 - 10 июня')
-        THREE = 2, _('13 - 17 июня')
-        FOUR = 3, _('20 - 24 июня')
-        FIVE = 4, _('27 июня - 01 июля')
-        SIX = 5, _('4 - 8 июля')
-        SEVEN = 6, _('11 - 15 июля')
-        EIGHT = 7, _('18 - 22 июля')
-        NINE = 8, _('25 - 29 июля')
-        TEN = 9, _('1 - 5 августа')
-        ELEVEN = 10, _('8 - 12 августа')
-        TWELVE = 11, _('15 - 19 августа')
-        THIRTEEN = 12, _('22 - 26 августа')
+        ONE = 0, _('29 мая - 2 июня')
+        TWO = 1, _('5 - 9 июня')
+        THREE = 2, _('12 - 16 июня')
+        FOUR = 3, _('19 - 23 июня')
+        FIVE = 4, _('26 - 30 июня')
+        SIX = 5, _('3 - 7 июля')
+        SEVEN = 6, _('10 - 14 июля')
+        EIGHT = 7, _('17 - 21 июля')
+        NINE = 8, _('24 - 28 июля')
+        TEN = 9, _('31 июля - 4 августа')
+        ELEVEN = 10, _('07 - 11 августа')
+        TWELVE = 11, _('14 - 18 августа')
+        THIRTEEN = 12, _('21 - 25 августа')
+
+        @staticmethod
+        def get_open_shift():
+            now = datetime.now()
+            open_shift = 2
+            if now >= datetime(2023, 6, 26, 10):
+                open_shift = 13
+            elif now >= datetime(2023, 6, 19, 10):
+                open_shift = 11
+            elif now >= datetime(2023, 6, 13, 10):
+                open_shift = 10
+            elif now >= datetime(2023, 6, 5, 10):
+                open_shift = 8
+            elif now >= datetime(2023, 5, 29, 10):
+                open_shift = 6
+            elif now >= datetime(2023, 5, 15, 10):
+                open_shift = 4
+            return open_shift
+
+        @staticmethod
+        def get_disabled_shift():
+            now = datetime.now()
+            disabled_shift = 0
+            if now >= datetime(2023, 7, 21):
+                disabled_shift = 13
+            elif now >= datetime(2023, 7, 14):
+                disabled_shift = 12
+            elif now >= datetime(2023, 7, 7):
+                disabled_shift = 11
+            elif now >= datetime(2023, 7, 31):
+                disabled_shift = 10
+            elif now >= datetime(2023, 7, 24):
+                disabled_shift = 9
+            elif now >= datetime(2023, 7, 17):
+                disabled_shift = 8
+            elif now >= datetime(2023, 7, 10):
+                disabled_shift = 7
+            elif now >= datetime(2023, 7, 3):
+                disabled_shift = 6
+            elif now >= datetime(2023, 6, 26):
+                disabled_shift = 5
+            elif now >= datetime(2023, 6, 19):
+                disabled_shift = 4
+            elif now >= datetime(2023, 6, 12):
+                disabled_shift = 3
+            elif now >= datetime(2023, 6, 5):
+                disabled_shift = 2
+            elif now >= datetime(2023, 5, 29):
+                disabled_shift = 1
+            return disabled_shift
 
     family_status = models.IntegerField(choices=FamilyStatus.choices, default=FamilyStatus.LARGE_FAMILY)
     direction = models.IntegerField(choices=Direction.choices, default=Direction.TECHNICAL)
@@ -86,7 +138,7 @@ class RegistrationMember(models.Model):
     objects = models.QuerySet.as_manager()
 
     @classmethod
-    def registation_limit(cls):
+    def registration_limit(cls):
         registration_members = cls.objects.all()
         limit = {}
         for shiftChoice in cls.Shift.choices:
@@ -110,7 +162,7 @@ class RegistrationMember(models.Model):
                 },
                 cls.Direction.CHILDREBN_SELF_GOVERNMENT: {
                     cls.AgeGroup.FROM_EIGHT_TO_TEN: 0,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 30,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.ENVIRONMENT: {
                     cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
@@ -121,8 +173,8 @@ class RegistrationMember(models.Model):
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.CIVIL_PATRIOTIC: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 25,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 25,
                 },
                 cls.Direction.WE_ARE_THE_WORLD: {
                     cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
@@ -146,7 +198,7 @@ class RegistrationMember(models.Model):
 
         gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
         spreadsheet = gc.open_by_key(spreadsheet_id)
-        sheet = spreadsheet.worksheet('Участники')
+        sheet = spreadsheet.worksheet('Участники 2023')
         next_row = next_available_row(sheet)
         sheet.update(f'A{next_row}', [
             [str(self.surname), str(self.first_name), str(self.last_name),
@@ -180,7 +232,7 @@ class RegistrationMember(models.Model):
             <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования 
             и науки города Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
             <br>
-            <p>Заявка на рассмотрении, ожидайте повторное письмо с подтверждением.</p>
+            <p>В течение 3-4 дней проводится ручная модерация и проверка предоставленных вами документов. Ожидайте на указанную вами почту письмо либо с приглашением и "Памяткой для родителей", либо отказ (если ваш льготный статус не подтвержден или документы некорректно прикреплены). Обычно письмо приходит в четверг или пятницу перед началом смены.</p>
         """
 
         send_result = MicrosoftGraph.send_mail(

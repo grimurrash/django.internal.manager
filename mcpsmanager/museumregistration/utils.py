@@ -8,6 +8,52 @@ from pathlib import Path
 from azure.identity import ClientSecretCredential
 from msgraph.core import GraphClient, APIVersion
 from django.conf import settings
+from ftplib import FTP, all_errors
+
+
+class FTPStorageException(Exception):
+    pass
+
+
+class FTPDrive:
+    _ftp = None
+    _folder = None
+    def __init__(self, folder: str):
+        ftp = FTP()
+        ftp.connect('62.112.101.226', 2101)
+        ftp.login('ftp.letopobed.cpvs.moscow@mcps.loc', 'Ft30042023$')
+
+        ftp.cwd('ftp.letopobed.cpvs.moscow/leto')
+        self._ftp = ftp
+        self.create_dirs(folder)
+        self._folder = folder
+
+    def create_dirs(self, path):
+        pwd = self._ftp.pwd()
+        path_splitted = path.split('/')
+        for path_part in path_splitted:
+            try:
+                self._ftp.cwd(path_part)
+            except:
+                try:
+                    self._ftp.mkd(path_part)
+                    self._ftp.cwd(path_part)
+                except all_errors:
+                    raise FTPStorageException(
+                        'Cannot create directory chain %s' % path
+                    )
+        self._ftp.cwd(pwd)
+        return
+
+    def create_file(self, file: InMemoryUploadedFile, file_name: str = None):
+        if not file_name:
+            file_name = file.name
+        elif not Path(file_name).suffix:
+            file_name = file_name + Path(file.name).suffix
+
+        content = ContentFile(file.read())
+        print(self._folder, file_name)
+        self._ftp.storbinary(f'STOR {self._folder}/{file_name}', content.file, content.DEFAULT_CHUNK_SIZE)
 
 
 class GoogleDrive:
@@ -33,9 +79,9 @@ class GoogleDrive:
         if folder_id:
             file_metadata['parents'] = [folder_id]
 
-        return self.drive_service.files().create(body=file_metadata).execute().get('id')
 
-    def create_file(self, file: InMemoryUploadedFile, file_name: str = None, folder_id: str = None):
+    @staticmethod
+    def create_file(file: InMemoryUploadedFile, file_name: str = None, folder_id: str = None):
         if not file_name:
             file_name = file.name
         elif not Path(file_name).suffix:
@@ -69,7 +115,7 @@ class MicrosoftGraph:
         return GraphClient(credential=credential, api_version=APIVersion.v1)
 
     @classmethod
-    def send_mail(cls, from_address: str, to_address: str,  message: str, subject: str = ""):
+    def send_mail(cls, from_address: str, to_address: str, message: str, subject: str = ""):
         client = cls.get_client()
 
         body = {

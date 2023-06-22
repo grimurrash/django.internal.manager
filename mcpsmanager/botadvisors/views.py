@@ -38,9 +38,10 @@ def bot_webhook(request: WSGIRequest):
 
 
 def refresh_test_results(_):
-    Interview.refresh_test_results()
+    result = Interview.update_goggle_table()
     return JsonResponse({
         'status': True,
+        'result': result,
     })
 
 
@@ -48,6 +49,7 @@ def send_finish_message(_):
     rows = Interview.send_finish_message()
     return JsonResponse({
         'status': True,
+        'count': len(rows),
         'rows': rows
     })
 
@@ -55,6 +57,7 @@ def send_result_message(_):
     rows = Interview.send_result_message()
     return JsonResponse({
         'status': True,
+        'count': len(rows),
         'rows': rows
     })
 
