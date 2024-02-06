@@ -18,12 +18,12 @@ class FTPStorageException(Exception):
 class FTPDrive:
     _ftp = None
     _folder = None
-    def __init__(self, folder: str):
+    def __init__(self, folder: str, cwd: str = 'ftp.letopobed.cpvs.moscow/leto'):
         ftp = FTP()
         ftp.connect('62.112.101.226', 2101)
         ftp.login('ftp.letopobed.cpvs.moscow@mcps.loc', 'Ft30042023$')
 
-        ftp.cwd('ftp.letopobed.cpvs.moscow/leto')
+        ftp.cwd(cwd)
         self._ftp = ftp
         self.create_dirs(folder)
         self._folder = folder

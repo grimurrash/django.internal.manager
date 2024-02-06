@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'modeling',
     'botadvisors',
     'videorating',
+    'vesnapobed',
 ]
 
 MIDDLEWARE = [
