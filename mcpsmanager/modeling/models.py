@@ -30,6 +30,8 @@ class ShipType(models.Model):
 
     objects = QuerySet.as_manager()
 
+def ship_model_path(instance, filename):
+    return 'uploads/ship-modeling/{0}/{1}'.format(instance.id, filename)
 
 class ShipModel(models.Model):
     model_name = models.CharField('Название модели', max_length=255)
@@ -57,11 +59,10 @@ class ShipModel(models.Model):
 
     description = models.TextField('Описание', default='', blank=True)
 
-    model_passport = models.CharField('Паспорт модели', max_length=255, null=True, default=None)
-    model_drawing = models.CharField('Чертёж модели', max_length=255, null=True, default=None)
+    model_passport = models.FileField(upload_to=ship_model_path, verbose_name='Паспорт модели', null=True, default=None, blank=True)
+    model_drawing  = models.FileField(upload_to=ship_model_path, verbose_name='Чертёж модели', null=True, default=None, blank=True)
 
-    main_photo = models.CharField('Основное фото', null=True, blank=False, max_length=255)
-    model_photos = models.JSONField('Фотографии модели', default=None, null=True, blank=True)
+    main_photo = models.FileField(upload_to=ship_model_path, verbose_name='Основное фото', null=True, default=None, blank=True)
 
     def get_status_name(self):
         return self.ShopModelStatus(self.status).label
@@ -90,5 +91,22 @@ class ShipModel(models.Model):
             'city_country': self.city_country,
             'educational_organization': self.educational_organization,
             'description': self.description,
-            'photos': list(map(lambda url: f'/{url}', json.loads(self.model_photos)))
+            'photos': list(map(lambda ship_model_file: f'/{ship_model_file.file}', self.shipmodelfile_set.all()))
         }
+
+def ship_model_file_path(instance, filename):
+    return 'uploads/ship-modeling/{0}/{1}'.format(instance.ship_model_id.id, filename)
+
+class ShipModelFile(models.Model):
+    file = models.FileField(upload_to=ship_model_file_path)
+    ship_model_id = models.ForeignKey(ShipModel, verbose_name='Модель', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'#{self.id}; Model {self.ship_model_id} file: {self.file}'
+
+    class Meta:
+        verbose_name = 'Фото модели судна'
+        verbose_name_plural = 'Фотографии модели судна'
+        ordering = ['-id']
+
+    objects = QuerySet.as_manager()

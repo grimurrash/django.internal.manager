@@ -79,11 +79,11 @@ class RegistrationMember(models.Model):
         def get_disabled_shift():
             now = datetime.now()
             disabled_shift = 0
-            if now >= datetime(2023, 7, 21):
+            if now >= datetime(2023, 8, 21):
                 disabled_shift = 13
-            elif now >= datetime(2023, 7, 14):
+            elif now >= datetime(2023, 8, 14):
                 disabled_shift = 12
-            elif now >= datetime(2023, 7, 7):
+            elif now >= datetime(2023, 8, 7):
                 disabled_shift = 11
             elif now >= datetime(2023, 7, 31):
                 disabled_shift = 10

@@ -138,13 +138,13 @@ def save_museum_registration_member(request: WSGIRequest):
         )
         registration_member.save()
         registration_member.save_to_google_table(spreadsheet_id=settings.GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID)
-        registration_member.send_email_notification()
+        # registration_member.send_email_notification()
         # shutil.rmtree(f'tmp/{member_folder_id}')
         return JsonResponse({'status': True})
     except Exception as exception:
         return JsonResponse({
             'status': False,
-            'message': 'Приносим извинения ведутся технические работы.',
+            'message': 'Приносим извинения, ведутся технические работы.',
             'error': str(exception)
         })
 
@@ -157,8 +157,8 @@ def refresh_google_table(_):
         return str(len(str_list) + 1)
 
     gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
-    spreadsheet = gc.open_by_key('152bP-qXWK0tbj4kn9bOqu29JNv5jH8XLc6Hn1KH24zY')
-    sheet = spreadsheet.worksheet('Участники')
+    spreadsheet = gc.open_by_key('1F_JxKIjMT9lfAT462rnjm6nomyXN6FsTCtxawHMPEaM')
+    sheet = spreadsheet.worksheet('Участники 2023')
     rows = sheet.get_all_values()
     add_member = list()
     for member in all_member:
