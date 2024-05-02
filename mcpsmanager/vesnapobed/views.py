@@ -35,7 +35,7 @@ def registration_limit(_):
             })
 
     # Временно убрали семейный статус "без статуса"
-    family_statuses.pop(0)
+    # family_statuses.pop(0)
 
     return JsonResponse({
         'limit': registration_limit,
@@ -112,8 +112,6 @@ def save_registration_member(request: WSGIRequest):
         )
         registration_member.save()
         registration_member.save_to_google_table()
-        # registration_member.send_email_notification()
-        # shutil.rmtree(f'tmp/{member_folder_id}')
         return JsonResponse({'status': True})
     except Exception as exception:
         return JsonResponse({
@@ -160,7 +158,3 @@ def refresh_google_table(_):
         'all_member': len(all_member),
         'add_member': add_member,
     })
-    # next_row = next_available_row(sheet)
-    # google_values = sheet.get_all_values()
-    # print(google_values)
-    # pass

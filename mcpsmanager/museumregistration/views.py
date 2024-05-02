@@ -12,8 +12,8 @@ from transliterate import translit
 import requests
 import json
 
-def museum_registation_limit(_):
-    registation_limit = RegistrationMember.registration_limit()
+def registration_limit(_):
+    registration_limit = RegistrationMember.registration_limit()
     family_statuses = dict(RegistrationMember.FamilyStatus.choices)
     age_groups = dict(RegistrationMember.AgeGroup.choices)
     directions = dict(RegistrationMember.Direction.choices)
@@ -38,49 +38,42 @@ def museum_registation_limit(_):
                 'visible': True
             })
 
-    min_date = '2009-01-01'
-    max_date = '2015-12-31'
-
     # Временно убрали семейный статус "без статуса"
     # family_statuses.pop(0)
 
     return JsonResponse({
-        'limit': registation_limit,
+        'limit': registration_limit,
         'familyStatuses': family_statuses,
         'ageGroups': age_groups,
         'directions': directions,
         'shifts': shifts,
-        'minDate': min_date,
-        'maxDate': max_date
     }, safe=False)
 
 
 @csrf_exempt
-def save_museum_registration_member(request: WSGIRequest):
+def save_registration_member(request: WSGIRequest):
     try:
-        # print(sys.getdefaultencoding())
-        # return JsonResponse({});
         data = request.POST.dict()
         files = request.FILES.dict()
 
         firstname = str(data['surname']).strip()
         surname = str(data['firstname']).strip()
         last_name = str(data['lastname']).strip()
-        date_of_birth = datetime.fromtimestamp(int(data['dateOfBirth']))
+        age = int(data['age'])
 
         member_registration_count = RegistrationMember.objects.filter(
             surname=firstname,
             first_name=surname,
             last_name=last_name,
-            date_of_birth=date_of_birth.strftime('%Y-%m-%d')
+            age=age
         ).count()
         if member_registration_count >= 2:
             return JsonResponse(
                 {'status': False,
                  'message': 'Вы зарегистрировались на 2 смены. Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
 
-        registration_limit = RegistrationMember.registration_limit()
-        if int(registration_limit[int(data['selectedShift'])][int(data['selectedDirection'])]
+        registration_limits = RegistrationMember.registration_limit()
+        if int(registration_limits[int(data['selectedShift'])][int(data['selectedDirection'])]
                [int(data['selectedAgeGroup'])]) <= 0:
             return JsonResponse({'status': False, 'message': 'В данной смене не осталось мест.'})
 
@@ -88,7 +81,7 @@ def save_museum_registration_member(request: WSGIRequest):
         age_group = dict(RegistrationMember.AgeGroup.choices)[int(data['selectedAgeGroup'])]
         direction = dict(RegistrationMember.Direction.choices)[int(data['selectedDirection'])]
 
-        member_folder_name = f'{surname} {firstname} {last_name} ' + date_of_birth.strftime('%d.%m.%Y')
+        member_folder_name = f'{surname} {firstname} {last_name} {age} лет'
         member_folder_path = translit(f"{shift}/{direction}/{age_group}/{member_folder_name}", language_code='ru', reversed=True)
 
         ftp_drive = FTPDrive(member_folder_path)
@@ -101,28 +94,14 @@ def save_museum_registration_member(request: WSGIRequest):
             ftp_drive.create_file(file=files.get('birthCertificateFile'), file_name="Birth certificate")
         if files.get('medicalPolicyFile'):
             ftp_drive.create_file(file=files.get('medicalPolicyFile'), file_name="Medical policy")
-        if files.get('consentToTheStorageOfPersonalDataFile'):
-            ftp_drive.create_file(file=files.get('consentToTheStorageOfPersonalDataFile'),
-                                  file_name="Consent to the processing of personal data")
-        # if files.get('contractFile'):
-        #     ftp_drive.create_file(file=files.get('contractFile'), file_name="Договор")
-        if files.get('applicationOneFile'):
-            ftp_drive.create_file(file=files.get('applicationOneFile'), file_name="Application 1")
-        if files.get('applicationTwoFile'):
-            ftp_drive.create_file(file=files.get('applicationTwoFile'), file_name="Application 2")
-        if files.get('applicationThreeFile'):
-            ftp_drive.create_file(file=files.get('applicationThreeFile'), file_name="Application 3")
-        if files.get('applicationFourFile'):
-            ftp_drive.create_file(file=files.get('applicationFourFile'), file_name="Application 4")
-        if files.get('applicationFiveFile'):
-            ftp_drive.create_file(file=files.get('applicationFiveFile'), file_name="Application 5")
-        if files.get('applicationSixFile'):
-            ftp_drive.create_file(file=files.get('applicationSixFile'), file_name="Application 6")
+        if files.get('contractFile'):
+            ftp_drive.create_file(file=files.get('contractFile'), file_name="Договор")
+
         registration_member = RegistrationMember(
             surname=firstname,
             first_name=surname,
             last_name=last_name,
-            date_of_birth=date_of_birth,
+            age=age,
             phone_number=data['phoneNumber'],
             email=data['email'],
             actual_address=data['address'],
@@ -134,12 +113,9 @@ def save_museum_registration_member(request: WSGIRequest):
             age_group=int(data['selectedAgeGroup']),
             shift=int(data['selectedShift']),
             documents_link=f'fpt: {member_folder_path}'
-            # documents_link=f'https://drive.google.com/drive/folders/{member_folder_id}?usp=sharing',
         )
         registration_member.save()
-        registration_member.save_to_google_table(spreadsheet_id=settings.GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID)
-        # registration_member.send_email_notification()
-        # shutil.rmtree(f'tmp/{member_folder_id}')
+        registration_member.save_to_google_table()
         return JsonResponse({'status': True})
     except Exception as exception:
         return JsonResponse({
@@ -156,14 +132,14 @@ def refresh_google_table(_):
         str_list = list(filter(None, worksheet.col_values(1)))
         return str(len(str_list) + 1)
 
-    gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
-    spreadsheet = gc.open_by_key('1F_JxKIjMT9lfAT462rnjm6nomyXN6FsTCtxawHMPEaM')
+    gc = gspread.service_account(settings.GOOGLE_CREDENTIALS_FILE_PATH)
+    spreadsheet = gc.open_by_key(settings.GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID)
     sheet = spreadsheet.worksheet('Участники 2023')
     rows = sheet.get_all_values()
     add_member = list()
     for member in all_member:
         member_list = [str(member.surname), str(member.first_name), str(member.last_name),
-                       member.date_of_birth.strftime('%Y-%m-%d'),
+                       str(member.age),
                        str(member.actual_address), str(member.school),
                        str(member.parent_fullname), str(member.phone_number), str(member.reserve_phone_number),
                        str(member.email),
@@ -186,9 +162,4 @@ def refresh_google_table(_):
         'all_member': len(all_member),
         'add_member': add_member,
     })
-    # next_row = next_available_row(sheet)
-    # google_values = sheet.get_all_values()
-    # print(google_values)
-    # pass
-
 

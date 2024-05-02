@@ -10,7 +10,7 @@ class RegistrationMember(models.Model):
     surname = models.CharField('Имя', max_length=100)
     first_name = models.CharField('Фамилия', max_length=100)
     last_name = models.CharField('Отчество', max_length=100)
-    date_of_birth = models.DateField('Дата рождения', blank=False, null=False)
+    age = models.IntegerField('Возраст', blank=False, null=False, default=0)
     parent_fullname = models.CharField('Фамилия', max_length=255)
     phone_number = models.CharField('Телефон', max_length=20)
     reserve_phone_number = models.CharField('Телефон', max_length=20)
@@ -24,11 +24,12 @@ class RegistrationMember(models.Model):
         LARGE_FAMILY = 1, _('Многодетная')
         POORLY_SECURED = 2, _('Малообеспеченная')
         NO_GUARDIANSHIP = 3, _('Без попечения')
-        INVALID = 4, _('Дети военных  по мобилизаци')
+        INVALID = 4, _('Дети военных по мобилизаци')
 
     class AgeGroup(models.IntegerChoices):
-        FROM_EIGHT_TO_TEN = 0, _('От 8 до 10 лет')
-        FROM_ELEVEN_TO_THIRTEEN = 1, _('От 11 до 13 лет')
+        FROM_SEVEN_TO_EIGHT = 0, _('От 7 до 8 лет')
+        FROM_EIGHT_TO_TEN = 1, _('От 8 до 10 лет')
+        FROM_ELEVEN_TO_THIRTEEN = 2, _('От 11 до 13 лет')
 
     class Direction(models.IntegerChoices):
         TECHNICAL = 0, _('Техническое')
@@ -40,6 +41,7 @@ class RegistrationMember(models.Model):
         CHILDREBN_SELF_GOVERNMENT = 6, _('Детское самоуправление')
         WE_ARE_THE_WORLD = 7, _('Мы - это мир')
         CREATIVE = 8, _('Творческое')
+        SPORTS = 9, _('Спортивное')
 
     class Shift(models.IntegerChoices):
         ONE = 0, _('29 мая - 2 июня')
@@ -144,41 +146,43 @@ class RegistrationMember(models.Model):
             shift = shiftChoice[0]
             limit.setdefault(shift, {
                 cls.Direction.TECHNICAL: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 25,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 25,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.MEDIA: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.HISTORY: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.MURZILKI: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 30,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 0,
+                    cls.AgeGroup.FROM_SEVEN_TO_EIGHT: 30,
                 },
                 cls.Direction.CHILDREBN_SELF_GOVERNMENT: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 0,
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.ENVIRONMENT: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.CREATIVE: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.CIVIL_PATRIOTIC: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 25,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 25,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.WE_ARE_THE_WORLD: {
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
+                },
+                cls.Direction.SPORTS: {
                     cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
-                },
+                }
             })
             for direction in limit[shift]:
                 for age in limit[shift][direction]:
@@ -190,65 +194,65 @@ class RegistrationMember(models.Model):
                     limit[shift][direction][age] = new_value
         return limit
 
-    def save_to_google_table(self, spreadsheet_id):
+    def save_to_google_table(self):
         def next_available_row(worksheet):
             str_list = list(filter(None, worksheet.col_values(1)))
             return str(len(str_list) + 1)
 
-        gc = gspread.service_account(filename=settings.GOOGLE_CREDENTIALS_FILE_PATH)
-        spreadsheet = gc.open_by_key(spreadsheet_id)
-        sheet = spreadsheet.worksheet('Участники 2023')
+        gc = gspread.service_account(settings.GOOGLE_CREDENTIALS_FILE_PATH)
+        spreadsheet = gc.open_by_key(settings.GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID)
+        sheet = spreadsheet.worksheet('Весна 2024')
         next_row = next_available_row(sheet)
         sheet.update(f'A{next_row}', [
             [str(self.surname), str(self.first_name), str(self.last_name),
-             str(self.date_of_birth)[0:10],
+             str(self.age),
              str(self.actual_address), str(self.school),
              str(self.parent_fullname), str(self.phone_number), str(self.reserve_phone_number), str(self.email),
              str(self.get_family_status()), str(self.get_direction()),
              str(self.get_age_group()), str(self.get_shift()), str(self.documents_link)]])
 
-    def send_email_notification(self):
-        shift_start_dates = {
-            0: "30 мая",
-            1: "6 июня",
-            2: "13 июня",
-            3: "20 июня",
-            4: "27 июня",
-            5: "4 июля",
-            6: "11 июля",
-            7: "18 июля",
-            8: "25 июля",
-            9: "1 августа",
-            10: "8 августа",
-            11: "15 августа",
-            12: "22 августа",
-        }
-
-        start_date = shift_start_dates.get(self.shift)
-        from_addr = "leto_pobed@cpvs.moscow"
-        support_addr = ''
-        content = f"""
-            <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования 
-            и науки города Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
-            <br>
-            <p>В течение 3-4 дней проводится ручная модерация и проверка предоставленных вами документов. Ожидайте на указанную вами почту письмо либо с приглашением и "Памяткой для родителей", либо отказ (если ваш льготный статус не подтвержден или документы некорректно прикреплены). Обычно письмо приходит в четверг или пятницу перед началом смены.</p>
-        """
-
-        send_result = MicrosoftGraph.send_mail(
-            from_address=from_addr,
-            to_address=str(self.email),
-            message=content,
-            subject='Регистрация на "Городской детский клуб "Лето Побед"'
-        )
-        if not send_result and support_addr:
-            MicrosoftGraph.send_mail(
-                from_address=from_addr,
-                to_address=support_addr,
-                message=f"""
-                ФИО ребенка: {self.surname} {self.first_name} {self.last_name}
-                ФИО родителя: {self.parent_fullname}
-                Электронная почта: {self.email}
-                Телефон: {self.phone_number}
-                """,
-                subject='Не получилось отправить письмо о подтверждении регистрации'
-            )
+    # def send_email_notification(self):
+    #     shift_start_dates = {
+    #         0: "30 мая",
+    #         1: "6 июня",
+    #         2: "13 июня",
+    #         3: "20 июня",
+    #         4: "27 июня",
+    #         5: "4 июля",
+    #         6: "11 июля",
+    #         7: "18 июля",
+    #         8: "25 июля",
+    #         9: "1 августа",
+    #         10: "8 августа",
+    #         11: "15 августа",
+    #         12: "22 августа",
+    #     }
+    #
+    #     start_date = shift_start_dates.get(self.shift)
+    #     from_addr = "leto_pobed@cpvs.moscow"
+    #     support_addr = ''
+    #     content = f"""
+    #         <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования
+    #         и науки города Москвы и Музея Победы "Городской детский клуб "Лето Побед".</p>
+    #         <br>
+    #         <p>В течение 3-4 дней проводится ручная модерация и проверка предоставленных вами документов. Ожидайте на указанную вами почту письмо либо с приглашением и "Памяткой для родителей", либо отказ (если ваш льготный статус не подтвержден или документы некорректно прикреплены). Обычно письмо приходит в четверг или пятницу перед началом смены.</p>
+    #     """
+    #
+    #     send_result = MicrosoftGraph.send_mail(
+    #         from_address=from_addr,
+    #         to_address=str(self.email),
+    #         message=content,
+    #         subject='Регистрация на "Городской детский клуб "Лето Побед"'
+    #     )
+    #     if not send_result and support_addr:
+    #         MicrosoftGraph.send_mail(
+    #             from_address=from_addr,
+    #             to_address=support_addr,
+    #             message=f"""
+    #             ФИО ребенка: {self.surname} {self.first_name} {self.last_name}
+    #             ФИО родителя: {self.parent_fullname}
+    #             Электронная почта: {self.email}
+    #             Телефон: {self.phone_number}
+    #             """,
+    #             subject='Не получилось отправить письмо о подтверждении регистрации'
+    #         )

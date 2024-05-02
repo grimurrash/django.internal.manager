@@ -49,10 +49,10 @@ class RegistrationMember(models.Model):
         @staticmethod
         def get_open_shift():
             now = datetime.now()
-            open_shift = 2
-            if now >= datetime(2024, 3, 15, 10):
+            open_shift = 0
+            if now >= datetime(2024, 3, 15, 9):
                 open_shift = 2
-            elif now >= datetime(2024, 2, 1, 10):
+            elif now >= datetime(2024, 2, 27, 13):
                 open_shift = 1
             return open_shift
 
@@ -62,7 +62,7 @@ class RegistrationMember(models.Model):
             disabled_shift = 0
             if now >= datetime(2024, 4, 5):
                 disabled_shift = 2
-            elif now >= datetime(2024, 3, 15):
+            elif now >= datetime(2024, 3, 18, 1):
                 disabled_shift = 1
             return disabled_shift
 
@@ -167,20 +167,20 @@ class RegistrationMember(models.Model):
              str(self.get_age_group()), str(self.get_shift()), str(self.documents_link)]])
 
     def send_email_notification(self):
-        from_addr = "vesna_pobed@cpvs.moscow"
+        from_addr = "leto_pobed@cpvs.moscow"
         support_addr = ''
         content = f"""
-            <p>Вы зарегистрировали ребенка для участия в совместном проекте Департамента образования 
-            и науки города Москвы и Музея Победы "Городской детский клуб "Весна Побед".</p>
-            <br>
-            <p>В течение 3-4 дней проводится ручная модерация и проверка предоставленных вами документов. Ожидайте на указанную вами почту письмо либо с приглашением и "Памяткой для родителей", либо отказ (если ваш льготный статус не подтвержден или документы некорректно прикреплены). Обычно письмо приходит в четверг или пятницу перед началом смены.</p>
+            <p>Спасибо!,</p>
+<p>Документы приняты к рассмотрению.</p>
+<p>Модерация документов проводится в течении 3-5 рабочих дней.</p>
+<p>По итогам вы получите уведомление на указанную электронную почту.".</p>
         """
 
         send_result = MicrosoftGraph.send_mail(
             from_address=from_addr,
             to_address=str(self.email),
             message=content,
-            subject='Регистрация на "Городской детский клуб "Лето Побед"'
+            subject='Регистрация на "Городской детский клуб "Весна Побед"'
         )
         if not send_result and support_addr:
             MicrosoftGraph.send_mail(
