@@ -39,7 +39,7 @@ def registration_limit(_):
             })
 
     # Временно убрали семейный статус "без статуса"
-    # family_statuses.pop(0)
+    family_statuses.pop(0)
 
     return JsonResponse({
         'limit': registration_limit,
@@ -95,7 +95,7 @@ def save_registration_member(request: WSGIRequest):
         if files.get('medicalPolicyFile'):
             ftp_drive.create_file(file=files.get('medicalPolicyFile'), file_name="Medical policy")
         if files.get('contractFile'):
-            ftp_drive.create_file(file=files.get('contractFile'), file_name="Договор")
+            ftp_drive.create_file(file=files.get('contractFile'), file_name="Contract")
 
         registration_member = RegistrationMember(
             surname=firstname,

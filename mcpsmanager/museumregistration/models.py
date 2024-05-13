@@ -27,7 +27,7 @@ class RegistrationMember(models.Model):
         INVALID = 4, _('Дети военных по мобилизаци')
 
     class AgeGroup(models.IntegerChoices):
-        FROM_SEVEN_TO_EIGHT = 0, _('От 7 до 8 лет')
+        FROM_SEVEN_TO_EIGHT = 0, _('8 лет')
         FROM_EIGHT_TO_TEN = 1, _('От 8 до 10 лет')
         FROM_ELEVEN_TO_THIRTEEN = 2, _('От 11 до 13 лет')
 
@@ -44,67 +44,64 @@ class RegistrationMember(models.Model):
         SPORTS = 9, _('Спортивное')
 
     class Shift(models.IntegerChoices):
-        ONE = 0, _('29 мая - 2 июня')
-        TWO = 1, _('5 - 9 июня')
-        THREE = 2, _('12 - 16 июня')
-        FOUR = 3, _('19 - 23 июня')
-        FIVE = 4, _('26 - 30 июня')
-        SIX = 5, _('3 - 7 июля')
-        SEVEN = 6, _('10 - 14 июля')
-        EIGHT = 7, _('17 - 21 июля')
-        NINE = 8, _('24 - 28 июля')
-        TEN = 9, _('31 июля - 4 августа')
-        ELEVEN = 10, _('07 - 11 августа')
-        TWELVE = 11, _('14 - 18 августа')
-        THIRTEEN = 12, _('21 - 25 августа')
+        ONE = 0, _('27 - 31 мая')
+        TWO = 1, _('3 - 7 июня')
+        THREE = 2, _('10 - 14 июня')
+        FOUR = 3, _('17 - 21 июня')
+        FIVE = 4, _('24 - 28 июня')
+        SIX = 5, _('1 - 5 июля')
+        SEVEN = 6, _('8 - 12 июля')
+        EIGHT = 7, _('15 - 19 июля')
+        NINE = 8, _('22 - 26 июля')
+        TEN = 9, _('29 июля - 2 августа')
+        ELEVEN = 10, _('5 - 9 августа')
+        TWELVE = 11, _('12 - 16 августа')
+        THIRTEEN = 12, _('19 - 23 августа')
 
         @staticmethod
         def get_open_shift():
             now = datetime.now()
-            open_shift = 2
-            if now >= datetime(2023, 6, 26, 10):
+            open_shift = 0
+            if now >= datetime(2024, 7, 8, 10):
                 open_shift = 13
-            elif now >= datetime(2023, 6, 19, 10):
-                open_shift = 11
-            elif now >= datetime(2023, 6, 13, 10):
-                open_shift = 10
-            elif now >= datetime(2023, 6, 5, 10):
+            elif now >= datetime(2024, 6, 17, 10):
                 open_shift = 8
-            elif now >= datetime(2023, 5, 29, 10):
-                open_shift = 6
-            elif now >= datetime(2023, 5, 15, 10):
-                open_shift = 4
+            elif now >= datetime(2024, 6, 3, 10):
+                open_shift = 4    
+            elif now >= datetime(2024, 5, 17, 10):
+                open_shift = 2
             return open_shift
 
         @staticmethod
         def get_disabled_shift():
             now = datetime.now()
             disabled_shift = 0
-            if now >= datetime(2023, 8, 21):
+            # За день до старта смены, она становится недоступкой к регистрации
+            if now >= datetime(2024, 8, 18, 12):
                 disabled_shift = 13
-            elif now >= datetime(2023, 8, 14):
+            elif now >= datetime(2024, 8, 11, 12):
                 disabled_shift = 12
-            elif now >= datetime(2023, 8, 7):
+            elif now >= datetime(2024, 8, 4, 12):
                 disabled_shift = 11
-            elif now >= datetime(2023, 7, 31):
+            elif now >= datetime(2024, 7, 28, 12):
                 disabled_shift = 10
-            elif now >= datetime(2023, 7, 24):
+            elif now >= datetime(2024, 7, 21, 12):
                 disabled_shift = 9
-            elif now >= datetime(2023, 7, 17):
+            elif now >= datetime(2024, 7, 14, 12):
                 disabled_shift = 8
-            elif now >= datetime(2023, 7, 10):
+            elif now >= datetime(2024, 7, 7, 12):
                 disabled_shift = 7
-            elif now >= datetime(2023, 7, 3):
+            elif now >= datetime(2024, 6, 30, 12):
                 disabled_shift = 6
-            elif now >= datetime(2023, 6, 26):
+            elif now >= datetime(2024, 6, 23, 12):
                 disabled_shift = 5
-            elif now >= datetime(2023, 6, 19):
+            elif now >= datetime(2024, 6, 16, 12):
                 disabled_shift = 4
-            elif now >= datetime(2023, 6, 12):
+            elif now >= datetime(2024, 6, 9, 12):
                 disabled_shift = 3
-            elif now >= datetime(2023, 6, 5):
+            elif now >= datetime(2024, 6, 2, 12):
                 disabled_shift = 2
-            elif now >= datetime(2023, 5, 29):
+            elif now >= datetime(2024, 5, 26, 12):
                 disabled_shift = 1
             return disabled_shift
 
@@ -146,11 +143,11 @@ class RegistrationMember(models.Model):
             shift = shiftChoice[0]
             limit.setdefault(shift, {
                 cls.Direction.TECHNICAL: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.MEDIA: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.HISTORY: {
@@ -164,20 +161,20 @@ class RegistrationMember(models.Model):
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.ENVIRONMENT: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
                     cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
                 },
                 cls.Direction.CREATIVE: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.CIVIL_PATRIOTIC: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.WE_ARE_THE_WORLD: {
-                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 15,
-                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 15,
+                    cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
+                    cls.AgeGroup.FROM_ELEVEN_TO_THIRTEEN: 20,
                 },
                 cls.Direction.SPORTS: {
                     cls.AgeGroup.FROM_EIGHT_TO_TEN: 20,
@@ -201,7 +198,7 @@ class RegistrationMember(models.Model):
 
         gc = gspread.service_account(settings.GOOGLE_CREDENTIALS_FILE_PATH)
         spreadsheet = gc.open_by_key(settings.GOOGLE_MUSEUMREGISTRATION_SPREADSHEET_ID)
-        sheet = spreadsheet.worksheet('Весна 2024')
+        sheet = spreadsheet.worksheet('Лето 2024')
         next_row = next_available_row(sheet)
         sheet.update(f'A{next_row}', [
             [str(self.surname), str(self.first_name), str(self.last_name),
