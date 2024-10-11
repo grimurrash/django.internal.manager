@@ -39,7 +39,7 @@ def registration_limit(_):
             })
 
     # Временно убрали семейный статус "без статуса"
-    family_statuses.pop(0)
+    # family_statuses.pop(0)
 
     return JsonResponse({
         'limit': registration_limit,
@@ -56,21 +56,34 @@ def save_registration_member(request: WSGIRequest):
         data = request.POST.dict()
         files = request.FILES.dict()
 
-        firstname = str(data['surname']).strip()
-        surname = str(data['firstname']).strip()
+        if int(data['selectedShift']) < 11:
+            firstname = str(data['surname']).strip()
+            surname = str(data['firstname']).strip()
+        else:
+            firstname = str(data['firstname']).strip()
+            surname = str(data['surname']).strip()
+
         last_name = str(data['lastname']).strip()
         age = int(data['age'])
 
-        member_registration_count = RegistrationMember.objects.filter(
+        member_registration_count_f1 = RegistrationMember.objects.filter(
             surname=firstname,
             first_name=surname,
             last_name=last_name,
             age=age
         ).count()
-        if member_registration_count >= 2:
+
+        member_registration_count_f2 = RegistrationMember.objects.filter(
+            surname=surname,
+            first_name=firstname,
+            last_name=last_name,
+            age=age
+        ).count()
+
+        if member_registration_count_f1 >= 2 or member_registration_count_f2 >= 2:
             return JsonResponse(
                 {'status': False,
-                 'message': 'Вы зарегистрировались на 2 смены. Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
+                 'message': 'Вы зарегистрировались на 2 смены. Более регистрация не возможна.'})
 
         registration_limits = RegistrationMember.registration_limit()
         if int(registration_limits[int(data['selectedShift'])][int(data['selectedDirection'])]
