@@ -47,8 +47,7 @@ def bot_webhook(request: WSGIRequest):
         pass
 
     return JsonResponse({
-        'status': False,
-        'bot': settings.ADVISORS_BOT_TOKE,
+        'status': True,
         'json_body': json_body
     })
 

@@ -19,5 +19,6 @@ urlpatterns = [
     path('surveysmanager/', include('surveysmanager.urls')),
     path('modeling/', include('modeling.urls')),
     path('abvisors/', include('botadvisors.urls')),
+    path('abvisors-mcvp/', include('botadvisorsmcvp.urls')),
     path('videorationg/', include('videorating.urls'))
 ] + static(settings.UPLOADS_URL, document_root=settings.UPLOADS_ROOT)
